@@ -1,0 +1,2629 @@
+To organize your program and reduce the size of the app_main.c file, you can create separate .c and .h files for related functionalities. For example, you can create a separate file for handling the menu UI and another for button handling. Here’s how you could refactor your current setup:
+
+1. Create Header Files
+For each new .c file you will create, make a corresponding .h file with the function declarations.
+
+menu.h
+
+#ifndef MENU_H
+#define MENU_H
+
+#include "u8g2.h"
+
+// Enum and constants declarations if needed
+enum MenuState;
+#define NUM_MAIN_ITEMS 7
+// ... rest of the constants
+
+// Function declarations
+void drawScrollbar(u8g2_t *u8g2, int selectedItem, int numItems);
+void drawMainMenu(u8g2_t *u8g2);
+// ... rest of the drawing functions
+
+#endif // MENU_H
+2. Implement the Menu functions in a .c file
+menu.c
+
+#include "menu.h"
+
+void drawScrollbar(u8g2_t *u8g2, int selectedItem, int numItems) {
+    // ... implement the function
+}
+
+void drawMainMenu(u8g2_t *u8g2) {
+    // ... implement the function
+}
+
+// ... implement other menu functions
+3. Include the Header Files in app_main.c
+app_main.c
+
+At the top of your app_main.c file you will now include the menu.h file.
+
+#include "menu.h"
+Then, you only need to call the functions defined in your menu.c through app_main.c without needing to implement them there.
+
+4. Modify the Makefile (if necessary)
+If you’re using an ESP-IDF type of project, you would typically not need to modify the Makefile directly since the build system will find and compile all .c files in the project directory tree. However, if your project is structured with an explicit Makefile, you’d need to include the new .c files in it.
+
+5. Integration
+In app_main.c, instead of repeating the codes, just call the functions as needed:
+
+#include "menu.h"
+
+void app_main(void) {
+    // ... initialization and setup code
+    
+    while (1) {
+        // ... application loop
+        drawMainMenu(&u8g2); // as an illustration
+        // ...
+    }
+}
+Summing Up
+Separate functions by concerns (menu, button handling, etc.) and place them in their own .c and .h files.
+
+Include the .h files where needed to make the function declarations available to other source files.
+
+This approach not only helps to keep your project organized and manageable, but it also makes it easier to debug, test, and maintain your code.
+
+Keep the app_main.c for application logic and control flow while delegating specific tasks to functions defined in other source files.
+
+Taking the time to refactor your code now will save you a lot of effort later, especially as your project grows in complexity.
+
+
+
+
+
+
+
+
+
+Certainly! You can encapsulate the initialization code in a setupUI function and the main UI loop in a startUI service-like function. Here’s an example of how you could achieve that.
+
+ui_service.h
+#ifndef UI_SERVICE_H
+#define UI_SERVICE_H
+
+void setupUI(void);
+void startUI(void);
+
+#endif // UI_SERVICE_H
+ui_service.c
+#include "ui_service.h"
+#include "menu.h"
+#include "driver/gpio.h"
+#include "u8g2_esp32_hal.h"
+
+// Place all your global variables and #defines here or in a separate configuration file.
+
+void setupUI(void) {
+    // GPIO configuration for buttons, I2C initialization, etc.
+
+    /* ... Existing GPIO setup ... */
+
+    /* ... Display Driver Initialization ... */
+
+    // ... Other initializations if necessary
+
+    drawLoadingScreen(&u8g2);
+}
+
+static void mainLoop(void) {
+    while (true) {
+        /* ... Existing button reading and debounce ... */
+
+        /* ... Existing state machine logic ... */
+
+        // Small delay to avoid overburdening the CPU
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+void startUI(void) {
+    mainLoop(); // Begin the main UI loop, which is now isolated in its own function
+}
+app_main.c
+#include "ui_service.h"
+
+void app_main(void) {
+    setupUI(); // Set up GPIO, display, etc.
+    startUI(); // Start the UI service
+}
+Explaining the separation:
+
+UI Service (ui_service.c) – This source file now contains a setupUI function for setting up GPIO, initializing the display, and any other setup tasks. The main loop code is inside a mainLoop function, which is called by startUI to effectively kick off and manage the UI service. This adheres to the concept of “services” as autonomous and encapsulated processes.
+
+UI Service Interface (ui_service.h) – This header file provides a clean interface for the rest of your program. It simply declares the functions setupUI and startUI.
+
+Main Program (app_main.c) – In this file, you only need to call setupUI to perform all initial setups and then startUI to begin the UI service. This file remains uncluttered and focused on application initialization.
+
+In the ESP-IDF framework, typically, the app_main would be the entry point for the program. This setup allows app_main to stay clean and understandable, serving as a high-level manager of services that are defined elsewhere in your project.
+
+Please adapt the provided code skeletons to your specific needs, move the relevant setup and loop logic into the correct places, and make sure that header files correctly reference any other necessary headers for types, constants, etc.
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+
+#include <esp_system.h>
+#include <esp_spi_flash.h>
+#include <SPI.h>
+#include <SD.h>
+#include <FS.h>
+
+// Function to check if the SD card is available
+bool SD_is_available() {
+  // Initialize the SD card slot
+  SD_init(SD_SLOT, SD_CLK, SD_CMD, SD_ Mosi, SD_Miso);
+
+  // Check if the SD card is inserted
+  if (SD_cardInserted()) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// Function to read the brightness value from the SD card configuration file
+int read_brightness_from_sd() {
+    // Initialize the SD card slot
+    SD_init(SD_SLOT, SD_CLK, SD_CMD, SD_ Mosi, SD_Miso);
+
+    // Open the configuration file
+    File configFile = SD.open("brightness.txt");
+
+    // Check if the file exists
+    if (configFile) {
+        // Read the brightness value from the file
+        int brightness = configFile.readInt();
+
+
+        // Close the file
+        configFile.close();
+
+        return brightness;
+    } else {
+        // If the file doesn't exist, return a default value
+        return 100;
+    }
+}
+
+################################################################################################################################################
+i want you add some functions to my code, first function checks if my SD card is available or not "SD_is_available()" and returns bool true or false wether the SD card is connected via vSPI to my esp32 or not. second use this function in my loading screen and flash the screen once if the sd card is present. then if the sd card was present. read the brightness value from the sdcard configuration file and set it. also make sure eachtime we increase the brightness or decrease it, you save the brightness to a config file on the sd card if it exists. also make a log_to_sd card where the log file is generated and everything is appended to log_current.txt file on sd card, then on the next reboot, log_current.txt will be log_prevous.txt and all the new logs will be appended to a new file log_current.txt (with this method, we handle log rotation of 2 recent log files)
+
+
+
+
+
+
+
+
+#include <SPI.h> 
+
+bool SD_card_Available() {
+
+  if(SPI.begin()) {
+    // SPI bus initialized
+
+    if(SD.begin(chipSelectPin)) {
+      // SD card initialized, card is present
+      
+      return true;
+    }
+  }
+
+  // SPI bus or SD card initialization failed, card is not present
+  return false;
+
+}
+
+
+
+
+#include <stdio.h>
+#include <string.h>
+#include "esp_vfs_fat.h"
+#include "driver/sdmmc_host.h"
+#include "sdmmc_cmd.h"
+
+// Path to the configuration file on the SD card
+const char* config_file_path = "/sdcard/config.txt";
+
+void app_main()
+{
+    // Initialize SD card
+    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 5
+    };
+    sdmmc_card_t* card;
+    esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+
+    // Read the brightness value from program or user input
+    int brightness = 75;
+
+    // Open the configuration file in write mode
+    FILE* config_file = fopen(config_file_path, "w");
+    if (config_file == NULL) {
+        printf("Failed to open the configuration file.\n");
+        return;
+    }
+
+    // Write the brightness value to the file
+    fprintf(config_file, "%d", brightness);
+
+    // Close the configuration file
+    fclose(config_file);
+
+    // Confirm that the brightness value has been stored
+    printf("Brightness value stored in the configuration file.\n");
+}
+
+
+Make sure to adjust the code according to your specific requirements and pin configurations. Also, handle any potential errors that may occur during SD card initialization, file operations, or SD card dismounting.
+
+
+
+
+
+
+
+
+
+#include <stdio.h>
+#include <string.h>
+#include <esp_vfs_fat.h>
+#include <sdmmc_cmd.h>
+
+// Function to initialize and mount the SD card
+void initialize_sd_card() {
+    // ... SD card initialization code ...
+}
+
+// Function to log a message to the SD card
+void log_to_sd_card(const char* message) {
+    FILE* log_file = fopen("/sdcard/log.txt", "a");
+    if (log_file != NULL) {
+        fprintf(log_file, "%s\n", message);
+        fclose(log_file);
+    }
+}
+
+// Example usage
+void app_main() {
+    // Initialize and mount the SD card
+    initialize_sd_card();
+
+    // Log a message to the SD card
+    log_to_sd_card("This is a log message.");
+
+    // ... Other code ...
+}
+
+
+Make sure to adjust the file path ("/sdcard/log.txt") to match the desired location and name of your log file.
+
+Remember to handle any potential errors that may occur during SD card initialization, file operations, or memory allocation. Additionally, consider implementing log rotation or size management to prevent the log file from growing too large over time.
+
+
+
+
+
+
+
+
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <esp_vfs_fat.h>
+
+#define MAX_LOG_FILES 2
+
+void rotateLogFiles(const char* logDirectory) {
+    DIR* dir = opendir(logDirectory);
+    if (dir == NULL) {
+        printf("Failed to open log directory\n");
+        return;
+    }
+
+    struct dirent* entry;
+    struct stat fileStat;
+    char filePath[256];
+    int fileCount = 0;
+
+    // Count the number of log files
+    while ((entry = readdir(dir)) != NULL) {
+        snprintf(filePath, sizeof(filePath), "%s/%s", logDirectory, entry->d_name);
+        if (stat(filePath, &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
+            fileCount++;
+        }
+    }
+
+    // Close and reopen the directory to reset the position
+    closedir(dir);
+    dir = opendir(logDirectory);
+
+    // Delete excess log files
+    while (fileCount > MAX_LOG_FILES && (entry = readdir(dir)) != NULL) {
+        snprintf(filePath, sizeof(filePath), "%s/%s", logDirectory, entry->d_name);
+        if (stat(filePath, &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
+            remove(filePath);
+            fileCount--;
+        }
+    }
+
+    closedir(dir);
+}
+
+
+
+
+
+
+
+
+#include <stdio.h>
+#include <string.h>
+#include <esp_vfs_fat.h>
+#include <sdmmc_cmd.h>
+
+// Function to initialize and mount the SD card
+void initialize_sd_card() {
+    // ... SD card initialization code ...
+}
+
+// Function to log a message to the SD card
+void log_to_sd_card(const char* message) {
+    FILE* log_file = fopen("/sdcard/log.txt", "a");
+    if (log_file != NULL) {
+        fprintf(log_file, "%s\n", message);
+        fclose(log_file);
+    }
+}
+
+// Example usage
+void app_main() {
+    // Initialize and mount the SD card
+    initialize_sd_card();
+
+    // Log a message to the SD card
+    log_to_sd_card("This is a log message.");
+
+    // ... Other code ...
+    
+    
+    
+    
+    
+    
+    
+    
+#include <stdio.h>
+#include <string.h>
+#include "esp_err.h"
+#include "esp_log.h"
+#include "driver/spi_master.h"
+#include "sdmmc_cmd.h"
+#include "esp_vfs_fat.h"
+
+// Function to initialize SPI and SD card
+void init_sd_card() {
+    // Configure SPI interface for SD card communication
+    // ...
+
+    // Mount the SD card filesystem
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 5
+    };
+    sdmmc_card_t* card;
+    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+    if (ret != ESP_OK) {
+        // Handle mount error
+        // ...
+    }
+}
+
+// Function to store brightness value in the configuration file
+void store_brightness_value(int brightness) {
+    // Path to the configuration file on the SD card
+    const char* config_file_path = "/sdcard/config.txt";
+
+    // Open the configuration file in write mode
+    FILE* config_file = fopen(config_file_path, "w");
+    if (config_file == NULL) {
+        // Handle file open error
+        // ...
+    }
+
+    // Write the brightness value to the file
+    fprintf(config_file, "%d", brightness);
+
+    // Close the configuration file
+    fclose(config_file);
+
+    // Confirm that the brightness value has been stored
+    ESP_LOGI("SD Card", "Brightness value stored in the configuration file.");
+}
+
+// Example usage
+void app_main() {
+    // Initialize SPI and SD card
+    init_sd_card();
+
+    // Read the brightness value from program or user input
+    int brightness = 75;
+
+    // Store the brightness value in the configuration file
+    store_brightness_value(brightness);
+
+    // Unmount the SD card filesystem
+    esp_vfs_fat_sdmmc_unmount();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+To accomplish the objectives described, you will need to modify and add the following functions to your ESP-IDF code. Below is a high-level pseudo outline of the functions and their integration into your code scheme without the full implementation details, which should be tailored to fit within the rest of your existing codebase and specific application logic.
+
+The SD_is_available() function will make use of the ESP-IDF SD card library to verify if the SD card is connected and available.
+// Checks if the SD card is available
+bool SD_is_available() {
+    // Your implementation should initialize the SD card using vSPI
+    // and check if it is available
+    // ...
+
+    if (/* condition, SD card is initialized and connected */) {
+        return true;
+    } else {
+        return false;
+    }
+}
+Modify the drawLoadingScreen() function to use SD_is_available() and flash the screen if the SD card is present. Also, read and apply brightness settings from the SD card.
+void drawLoadingScreen(u8g2_t *u8g2) {
+    // Existing drawing code...
+    // ...
+
+    // Check for SD card availability and flash screen if present
+    if (SD_is_available()) {
+        flashScreenTest(u8g2);
+
+        // Read the brightness value from the SD card and apply it
+        brightness = read_brightness_from_sd(); // Implement this function
+        u8g2_SetContrast(u8g2, brightness);
+    }
+
+    // Continue with loading screen drawing...
+    // ...
+}
+Ensure the increase/decrease brightness functions save the new value to the SD card.
+void save_brightness_to_sd(int brightness_value) {
+    // Implement the logic to open/create a config file and write the brightness value
+    // Make sure error checking/handling is in place for file operations
+    // ...
+}
+
+void increaseBrightness(u8g2_t *u8g2) {
+    // Existing code to increase brightness...
+    // ...
+    
+    // If the SD card is available, save the new brightness level
+    if (SD_is_available()) {
+        save_brightness_to_sd(brightness);
+    }
+}
+
+void decreaseBrightness(u8g2_t *u8g2) {
+    // Existing code to decrease brightness...
+    // ...
+
+    // If the SD card is available, save the new brightness level
+    if (SD_is_available()) {
+        save_brightness_to_sd(brightness);
+    }
+}
+Implement log rotation and writing logs to the SD card in log_to_sd() function.
+void log_to_sd(const char *log_message) {
+    // Implement the logic to check for SD card presence
+    // Initialize log files and perform log rotation
+    if (SD_is_available()) {
+        // Rename current log to previous log, and create/open a new current log file
+        // Make sure proper error checking is in place
+    
+        // Append the log message to the current log file
+        // ...
+    }
+}
+Note: These functions must be integrated into your existing codebase with appropriate ESP-IDF API calls for SD card management (sdmmc_host_t, sdmmc_card_t, file operations, etc.) and error handling. The comments within the pseudo code should be replaced with the actual implementation code, which will interact with the ESP-IDF SD card driver, Filesystem APIs, and the functions you’ve used for the display (u8g2 display library).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################################################################################
+
+
+#include <string.h>
+#include <sys/unistd.h>
+#include <sys/stat.h>
+#include <stdbool.h>
+#include "esp_log.h"
+#include "esp_vfs_fat.h"
+#include "sdmmc_cmd.h"
+
+// ... (rest of your includes and definitions)
+
+// Forward declaration of functions used in SD_is_available
+static esp_err_t mount_sdcard();
+static void unmount_sdcard();
+
+bool SD_is_available() {
+    if (mount_sdcard() == ESP_OK) {
+        unmount_sdcard(); // Unmount right after checking to avoid interfering in case you need to mount elsewhere
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static esp_err_t mount_sdcard() {
+    sdmmc_card_t* card;
+    esp_err_t ret;
+
+    ESP_LOGI(TAG, "Initializing SD card");
+
+    // ... (rest of the SD card initialization and mounting code, as in your 'app_main')
+
+    ret = esp_vfs_fat_sdspi_mount(MOUNT_POINT, &host, &slot_config, &mount_config, &card);
+    if (ret != ESP_OK) {
+        // Handle different potential errors
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "Filesystem mounted");
+
+    return ESP_OK;
+}
+
+static void unmount_sdcard() {
+    // Unmount partition and disable SPI peripheral
+    esp_vfs_fat_sdcard_unmount(MOUNT_POINT, NULL);
+    ESP_LOGI(TAG, "Card unmounted");
+}
+
+void app_main(void) {
+    // ... The rest of your main code
+}
+With this code snippet, the SD_is_available() function first tries to mount the SD card. If mounting is successful, it means the SD card is both present and accessible, so it unmounts the card again (to prevent conflicts if the card is used later in your application) and returns true. If the mounting fails, the function returns false.
+
+Please note:
+
+It is important to only keep the SD card mounted when necessary to perform file operations, as having it mounted could prevent deep sleep or increase power consumption if your application requires it.
+You will still need to handle error messages and take appropriate actions within your main application flow, as the SD_is_available() function is intended for simple checking only.
+Integrate this logic into your existing code where you need to check the SD card’s availability, following a similar pattern to your existing SD card handling functions.
+################################################################################################################################################
+COMPLETE VERSION OF ABOVE IS BELOW:
+static esp_err_t mount_sdcard() {
+    esp_err_t ret;
+
+    // Options for mounting the filesystem.
+    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+        .format_if_mount_failed = false,
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024
+    };
+    sdmmc_card_t* card;
+
+    ESP_LOGI(TAG, "Initializing SD card");
+
+    // Use settings defined above to initialize SD card and mount FAT filesystem.
+    ESP_LOGI(TAG, "Using SPI peripheral");
+
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    spi_bus_config_t bus_cfg = {
+        .mosi_io_num = PIN_NUM_MOSI,
+        .miso_io_num = PIN_NUM_MISO,
+        .sclk_io_num = PIN_NUM_CLK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4000,
+    };
+
+    ret = spi_bus_initialize(host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize bus.");
+        return ret;
+    }
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = PIN_NUM_CS;
+    slot_config.host_id = host.slot;
+
+    ret = esp_vfs_fat_sdspi_mount(MOUNT_POINT, &host, &slot_config, &mount_config, &card);
+
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Filesystem mounted");
+        // Card has been initialized, print its properties
+        sdmmc_card_print_info(stdout, card);
+    } else {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount filesystem. ");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize the card (%s). "
+                     "Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+        }
+    }
+    return ret;
+}
+################################################################################################################################################
+
+To implement log_to_sd(), we will need to first determine if the SD card is available, and if so, handle the log rotation and file writing as requested. Let’s break down the tasks:
+
+Check for SD card availability.
+Rotate the logs by renaming log_current.txt to log_previous.txt if it exists.
+Write the new log message to log_current.txt.
+#include <sys/unistd.h>
+#include <sys/stat.h>
+
+// ...
+
+static const char *LOG_CURRENT = MOUNT_POINT"/log_current.txt";
+static const char *LOG_PREVIOUS = MOUNT_POINT"/log_previous.txt";
+
+void log_to_sd(const char *log_message) {
+    // Check SD card availability
+    if (!SD_is_available()) {
+        ESP_LOGE(TAG, "SD card is not available!");
+        return;
+    }
+
+    // Perform log rotation
+    // Check if the current log file exists
+    struct stat st;
+    if (stat(LOG_CURRENT, &st) == 0) {
+        // If so, delete the old previous log file if it exists
+        unlink(LOG_PREVIOUS);
+        // And rename the current log file to the previous log file
+        if (rename(LOG_CURRENT, LOG_PREVIOUS) != 0) {
+            ESP_LOGE(TAG, "Failed to rotate log file!");
+            return;
+        }
+    }
+
+    // Open the log file for appending, or create it if it does not exist.
+    FILE *f = fopen(LOG_CURRENT, "a");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open current log file for writing");
+        return;
+    }
+
+    // Write the log message to the file
+    fprintf(f, "%s\n", log_message);
+
+    // Clean up and close the file
+    fclose(f);
+}
+This function integrates the operations outlined above while utilizing standard POSIX file operations. It ensures that only the two most recent logs are kept (log_current.txt and log_previous.txt), meeting the requirement for maintaining a simple two-file log rotation scheme.
+
+Please note, you should have SD_is_available() implemented as previously discussed to check SD card presence before attempting any file operations.
+
+The log_to_sd function does not handle SD card initialization, which should have been taken care of separately, and assumes the SD card is already mounted when called.
+
+Remember that this code snippet assumes all logging is done sequentially from a single task or that appropriate synchronization mechanisms (e.g., mutexes) are implemented if multiple tasks can write logs simultaneously.
+
+When considering real-world applications, it is also recommended to add additional error handling and possibly implement a more sophisticated log rotation scheme depending on the application’s needs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Certainly! Here’s how we can optimize and structure your code for better robustness and error handling:
+
+Centralize Initialization:
+We need to ensure that the SD card is initialized and mounted only once, ideally at the start of the app_main function. We will remove the SD_is_available check as the availability will be inferred directly from the mount status.
+
+Improved Error Handling:
+Include descriptive logging for each step so that you can troubleshoot issues more effectively. When an error occurs, log it and take the appropriate action, such as trying to reinitialize the SD card or fall back on default values.
+
+Clean-up Resource Management:
+If there’s an error with the card or filesystem, properly unmount and deinitialize the hardware before proceeding or retrying.
+
+Ensure Consistent File Access:
+After initializing and mounting the SD card, we can perform file operations safely, knowing the card is available.
+
+Here’s the revised architecture based on your code:
+
+#include "your_header_files.h"
+
+// Place your constants and definitions here
+
+// Declare all global variables and externs if necessary
+sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+sdmmc_card_t* card = NULL;
+bool sd_card_initialized = false;
+
+// Initialization function
+esp_err_t sd_card_init(void) {
+    // ... your initialization code ...
+    // Ensure that initialization is only done once
+    if (!sd_card_initialized) {
+        esp_err_t ret = mount_filesystem(&host, &slot_config, &card);
+        if (ret == ESP_OK) {
+            sd_card_initialized = true;
+            ESP_LOGI(TAG, "SD card initialized and mounted.");
+        } else {
+            // Handle error, could try re-initializing, log the error, or use default values
+            ESP_LOGE(TAG, "Failed to initialize SD card: %s.", esp_err_to_name(ret));
+            // Consider unmounting the filesystem and deinitializing the SPI bus here if needed
+        }
+        return ret;
+    } else {
+        ESP_LOGI(TAG, "SD card is already initialized.");
+        return ESP_OK;
+    }
+}
+
+void sd_card_deinit(void) {
+    // Unmount the filesystem and deinitialize the card only if it was initialized
+    if (sd_card_initialized) {
+        unmount_sdcard();
+        ESP_LOGI(TAG, "SD card deinitialized.");
+        sd_card_initialized = false;
+    }
+}
+
+esp_err_t save_brightness(int brightness_value) {
+    // ... similar structure to read_brightness_from_sd() ...
+    // Do not check sd_card_initialized; this function should only be called after a successful initialization
+    // And so on for each relevant function...
+}
+
+bool read_brightness_from_sd(int *brightness_value) {
+    // ... file operations ...
+    // Do not check sd_card_initialized; this function should only be called after a successful initialization
+}
+
+void app_main(void) {
+    esp_err_t ret = sd_card_init();
+    if (ret != ESP_OK) {
+        // Handle the error, such as retrying initialization, or proceeding with defaults
+    }
+
+    // If we reached this point, either the SD card is successfully initialized, or we are using defaults
+    if (sd_card_initialized) {
+        // Perform file operations
+        bool read_success = read_brightness_from_sd(&brightness);
+        if (!read_success) {
+            // Log the error, or fallback to default value and possibly save it
+            ESP_LOGI(TAG, "Using default brightness value: %d", brightness);
+            save_brightness(brightness);
+        }
+    }
+
+    // Remember to handle deinitialization of the SD card once app_main is exiting or if you're done with the SD card
+    sd_card_deinit();
+}
+By following this structured approach:
+
+You clear the initialization state up front and check if it’s necessary to reinitialize.
+You have a clear deinitialization process for cases where you need to release resources.
+Checks for the SD card’s availability are implicit and consistent, based on initialization status.
+Error handling steps are clear and actions are taken to log and respond accordingly.
+This should result in a more robust, maintainable application regarding SD card interactions.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yes, the ESP32 does have a feature for automatic CPU frequency scaling, which is part of its power management capabilities. This feature allows the CPU to scale its frequency up or down based on the current load and can be particularly helpful in saving power when the processor is idle or under light load.
+
+You can enable automatic light sleep and frequency scaling by configuring the power management options and using the esp_pm_configure() function as demonstrated:
+
+esp_pm_config_esp32_t pm_config = {
+        .max_cpu_freq = MHZ(240), // Set the maximum frequency
+        .min_cpu_freq = MHZ(80),  // Set the minimum frequency
+        // This flag enables automatic light sleep during idle times
+        .light_sleep_enable = true
+};
+esp_err_t ret = esp_pm_configure(&pm_config);
+if (ret != ESP_OK) {
+    // Handle error
+    ESP_LOGE(TAG, "Failed to configure power management");
+}
+When you enable light sleep, the CPU can drop to lower frequencies when the system is idle. This feature uses the FreeRTOS tickless mode to drop the CPU into light sleep whenever the idle task is run, which can significantly reduce power consumption.
+
+However, when you have functions like GPIO polling in a tight loop within your main task, the CPU may never be idle long enough for automatic power management to kick in, as it will appear to be under a constant load. Your polling loop will keep the CPU running at the maximum configured frequency, thus defeating the benefits of automatic frequency scaling.
+
+To mitigate this and allow the CPU to scale down appropriately, you should ensure that your main loop allows for some idling. If you’re using a polling mechanism for buttons, consider implementing one of the following strategies:
+
+Use Interrupts: Instead of polling, use GPIO interrupts to respond to button presses. This will free your main loop from continually checking the buttons and allow the CPU to enter light sleep.
+
+Add Delays: If you must use polling, add a delay (like vTaskDelay) in your polling loop to give the CPU time to idle. This will allow the power management system to reduce the frequency or enter light sleep when possible.
+
+Task Yielding: If you’re in a FreeRTOS task and there’s no work left to do for a while, you can call vTaskDelay or taskYIELD() to allow other tasks or the idle task to run, which can trigger the CPU to scale down.
+
+Enabling and correctly configuring the power management features of the ESP32 can significantly affect the power consumption, but you must ensure that your application is compatible with it. Whichever method you choose for your main loop, remember that the goal is to avoid constant full CPU usage when it’s not necessary.
+
+
+
+
+
+
+
+
+
+
+To control the CPU frequency on an ESP32, you can use the functions esp_pm_configure() for power management configuration and esp_clk_cpu_freq_set() to set the CPU frequency directly.
+
+Include the necessary headers:
+
+#include "esp_pm.h"
+#include "esp_system.h"
+And then you can use something like this to adjust the CPU frequency:
+
+} else if (*state == POWER_MANAGEMENT_SUB_MENU) {
+    switch (selected_item) {
+        case 0: // POWER SAVING MODE
+            // Set CPU frequency to 80 MHz
+            if (esp_pm_configure(&(esp_pm_config_esp32_t){.max_cpu_freq = 80, .min_cpu_freq = 80})) {
+                printf("Failed to set power saving mode\n");
+            } else {
+                printf("Power saving mode set, CPU frequency is 80 MHz\n");
+            }
+            break;
+        case 1: // PERFORMANCE MODE
+            // Set CPU frequency to 240 MHz
+            if(esp_pm_configure(&(esp_pm_config_esp32_t){.max_cpu_freq = 240, .min_cpu_freq = 240})) {
+                printf("Failed to set performance mode\n");
+            } else {
+                printf("Performance mode set, CPU frequency is 240 MHz\n");
+            }
+            break;
+        // Handle cases for other items...
+        default:
+            break;
+    }
+}
+Please note that adjusting CPU frequency can affect the stability of your ESP32 if it’s not done correctly. Double-check the supported frequencies for your specific model of ESP32.
+
+Additionally, ESP32’s operating voltage can limit the maximum stable frequency. It’s crucial to ensure that the power supply to ESP32 is stable and can handle the changes without causing unintended resets or brownout detections.
+
+Lastly, changing these settings can impact functionality that is directly tied to the CPU frequency, like UART baud rates or timers. Adjustments might be necessary wherever the code assumes a specific clock rate.
+
+
+
+
+
+
+
+
+
+That’s correct; you’re using the ESP-IDF’s logging functions properly. The esp_pm_configure() function sets power management options, and in this case, you’re trying to set both the maximum and minimum CPU frequencies to 240 MHz, effectively locking the CPU frequency at 240 MHz for a “Performance Mode.”
+
+If esp_pm_configure() returns a non-zero value (indicative of an error), an error message will be logged using ESP_LOGE, which corresponds to the “Error” log level. This will output an error message indicating that the application failed to set the ESP32 to Performance Mode.
+
+However, please note that the esp_pm_configure() function syntax only specifies the power management configuration. The actual changing of the CPU frequency is usually handled by the power management framework behind the scenes based on tasks being executed and their priority.
+
+If you need to set the CPU frequency to a fixed value outside of the power management framework, you should use the function esp_clk_cpu_freq_set() instead. But be cautious when doing this, as it may override the power management’s automatic frequency scaling capabilities and may not be compatible with esp_pm_configure().
+
+Here is the corrected format including esp_clk_cpu_freq_set():
+
+#include "esp_log.h"
+#include "esp_pm.h"
+#include "esp_system.h"
+#include "soc/rtc.h"
+
+static const char *TAG = "CPU_POWER";
+
+// Inside your switch statement
+if(esp_pm_configure(&(esp_pm_config_esp32_t){.max_cpu_freq = 240, .min_cpu_freq = 80})) {
+    ESP_LOGE(TAG, "Failed to configure power management");
+} else {
+    // Attempt to set CPU frequency directly
+    rtc_cpu_freq_t freq = RTC_CPU_FREQ_240M;
+    esp_clk_cpu_freq_set(freq);
+    ESP_LOGI(TAG, "Performance mode set, CPU frequency is 240 MHz");
+}
+In the above example, the call to esp_pm_configure() configures the power management parameters allowing a range between 80 and 240 MHz, and then the CPU frequency is immediately set to RTC_CPU_FREQ_240M (240 MHz) right after that by directly calling esp_clk_cpu_freq_set(). Also, make sure to choose the correct RTC frequency configuration for your desired frequency based on the ESP32 documentation and header definitions.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+If you are encountering errors when trying to configure power management settings and receiving messages that the mode setting has failed, there might be several causes:
+
+Incorrect Configuration Structure: Ensure that the esp_pm_config_t structure is correctly used based on the ESP-IDF version’s documentation. The structure fields should be set as defined by the API reference.
+
+Unsupported CPU Frequencies: It’s possible that the CPU frequencies you’re trying to set are not supported by the power management configuration or the hardware. Verify that the ESP32 chip you’re using supports the frequencies you intend to set.
+
+Incompatibilities with Other System Settings: There could be some other system settings or tasks that are incompatible with the power management configuration you’re trying to set. For example, if any real-time tasks or other components require a higher CPU frequency, setting a lower CPU frequency could fail.
+
+API Usage: Double-check that the API function esp_pm_configure() is used correctly according to the ESP-IDF documentation for your specific version.
+
+Return Code Analysis: Get the specific error code returned from esp_pm_configure() to understand the cause of failure. Logging the returned error code can provide more insights.
+
+Incorrect Clock Configuration: There may be a conflict with the clock configuration that needs to be resolved before modifying the power management settings.
+
+Current Power Management Locks: If there are any locks on power management from other parts of the code (tasks that have raised the frequency and locked it), attempts to lower it will fail. All locks need to be released before a successful change.
+
+Here is what you can do to debug the situation:
+
+Check the return value from esp_pm_configure() to get the exact error code.
+esp_err_t ret = esp_pm_configure(&pm_config);
+if (ret != ESP_OK) {
+    ESP_LOGE(TAG1, "Failed to set mode: %s", esp_err_to_name(ret));
+}
+Review the initialization code and ensure no other configurations are conflicting with your desired power settings.
+
+Look for any previous calls to esp_pm_lock_acquire() that might be preventing changes to the power management settings.
+
+Consider if the FreeRTOS tick rate (configTICK_RATE_HZ) or any other system configuration might be incompatible with a lower CPU frequency.
+
+Check the ESP-IDF documentation for ‘power management’ and ‘CPU frequency scaling’ concerning your specific ESP-IDF version to make sure you aren’t missing any prerequisites.
+
+If the issues persist, please refer to the ESP-IDF Programming Guide or the Technical Reference Manual to ensure that all conditions for setting these modes are met, or consider reaching out to ESP-IDF’s support channels, such as the ESP32 forum or Espressif’s technical support.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+If you are interested in a more structured format for configuration files, your options include key-value pair files (like .ini), JSON, YAML, etc. While C doesn’t have built-in support for these formats like higher-level languages do, there are libraries available that can help.
+
+For this example, I will explain how to use a simplistic key-value pair approach similar to an ini file format since it’s relatively straightforward to parse with C without external dependencies. If you prefer a more complex format such as JSON or YAML, you would typically use a library specifically designed to parse them (such as Jansson for JSON or yaml-cpp for YAML).
+
+Here’s a basic implementation of updating or appending values for specified keys in a .ini-like configuration file:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define CONFIG_FILE_PATH "/sdcard/config.ini"
+#define MAX_LINE_LENGTH 128
+
+// Utility function to trim whitespace from the start and end of a string.
+char* trim_whitespace(char *str) {
+    while(isspace((unsigned char)*str)) str++;
+    if(*str == 0) return str;
+
+    char *end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+    *(end+1) = 0;
+
+    return str;
+}
+
+void save_config_item(const char *key, const char *value) {
+    FILE *file = fopen(CONFIG_FILE_PATH, "r+");
+    if (!file) {
+        // If file doesn't exist, create it
+        file = fopen(CONFIG_FILE_PATH, "w");
+        if (!file) {
+            perror("Error opening configuration file");
+            return;
+        }
+    }
+
+    // Buffer to store the entire content of the file
+    char buffer[MAX_LINE_LENGTH * 100] = {0}; // Adjust the size properly
+    char line[MAX_LINE_LENGTH];
+    bool keyExists = false;
+    long writePos = 0;
+
+    // Read through existing lines and update buffer
+    while (fgets(line, sizeof(line), file)) {
+        // Trim whitespace and parse
+        char *line_trim = trim_whitespace(line);
+        char current_key[MAX_LINE_LENGTH];
+
+        // If the line is the key we are looking for, update the line
+        if (sscanf(line_trim, "%[^=] =", current_key) == 1) {
+            if (strcmp(current_key, key) == 0) {
+                snprintf(line, sizeof(line), "%s = %s\n", key, value);
+                keyExists = true;
+            }
+        }
+        // Append the line to the buffer
+        strcat(buffer, line);
+        // Remember the position of the last line in the file
+        writePos = ftell(file);
+    }
+
+    // If the key was not found earlier, append it to the buffer
+    if (!keyExists) {
+        snprintf(line, sizeof(line), "%s = %s\n", key, value);
+        strcat(buffer, line);
+    }
+
+    // Rewrite the updated buffer to the file
+    rewind(file);
+    fwrite(buffer, 1, writePos, file);
+    fclose(file);
+}
+
+// Trimming whitespace needs header: #include <ctype.h>
+// Call this function to update a setting
+// Example usage:
+// save_config_item("brightness", "75");
+// save_config_item("cpu_freq", "160");
+
+int main() {
+    // Include your logic to determine when and what to write to the configuration,
+    // based on your specific needs.
+
+    // Saving the brightness
+    save_config_item("brightness", "75");
+
+    // Saving the CPU frequency
+    save_config_item("cpu_freq", "160");
+
+    // Normally, you would also have a 'read_config()' function that opens the file
+    // and reads the value for a given key.
+
+    return 0;
+}
+In the code sample above, a very basic configuration file writer is implemented that reads the entire existing content into memory, updates the value if the key is found, or appends the key-value pair if not. It then writes the new configuration back to the same file, effectively updating it.
+
+Please remember that, as in the previous example, this implementation reads the whole file into memory, so depending on the expected number of lines, you may need to adjust the buffer accordingly. For larger files, a different approach that reads and writes the file in chunks or uses a temporary file may be more suitable, which would be necessary if you deal with very large configuration files.
+
+The advantage of this approach is that it doesn’t require external libraries for file parsing. Still, it’s a basic solution and might not scale well for more complex configuration requirements. If you are working with a resource-constrained microcontroller, carefully consider the memory footprint of this method.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Certainly! To implement the read_settings function, you will need to open the config file, read through each line, and assign the values to the appropriate variables in your program.
+
+Here is an example of the read_settings function that will read both the brightness and CPU frequency settings from your config file:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <ctype.h>
+
+#define CONFIG_FILE_PATH "/sdcard/config.ini"
+#define MAX_LINE_LENGTH 128
+
+// Function prototype declarations
+void save_config_item(const char *key, const char *value);
+void read_settings(int *brightness, int *cpu_freq);
+
+// Use this to strip white space from both ends of a string
+char* trim_whitespace(char *str) {
+    while(isspace((unsigned char)*str)) str++;
+    if (*str == 0) return str;
+
+    char *end = str + strlen(str) - 1;
+    while (end > str && isspace((unsigned char)*end)) end--;
+    *(end + 1) = 0;
+
+    return str;
+}
+
+// Supply a buffer to hold each line from config file
+// Functionality: read values that match to keys 'brightness' and 'cpu_freq'
+void read_settings(int *brightness, int *cpu_freq) {
+    FILE *file = fopen(CONFIG_FILE_PATH, "r");
+    char line[MAX_LINE_LENGTH];
+
+    if (!file) {
+        perror("Error opening configuration file");
+        return;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        char key[MAX_LINE_LENGTH], value[MAX_LINE_LENGTH];
+
+        // If line is a comment or blank line, ignore it
+        if (line[0] == ';' line[0] == '#' line[0] == '\n') continue;
+
+        if (sscanf(trim_whitespace(line), "%[^=]=%s", key, value) == 2) {
+            if (strcmp(key, "brightness") == 0) {
+                *brightness = atoi(value);
+            } else if (strcmp(key, "cpu_freq") == 0) {
+                *cpu_freq = atoi(value);
+            }
+        }
+    }
+    fclose(file);
+}
+
+// Example usage of the saving function
+int main() {
+    // Applying settings
+    int brightness_setting = 0, cpu_freq_setting = 0;
+
+    // Reading settings
+    read_settings(&brightness_setting, &cpu_freq_setting);
+
+    // Output the settings for verification
+    printf("Brightness: %d\n", brightness_setting);
+    printf("CPU Frequency: %d MHz\n", cpu_freq_setting);
+
+    // Logic to apply settings goes here...
+
+    // At some other point in your program, you might save new settings as well:
+    // save_config_item("brightness", "75");
+    // save_config_item("cpu_freq", "160");
+
+    return 0;
+}
+In the read_settings function, I open the config file and iterate through each line. I use a simple pattern matching to check for brightness or cpu_freq keys, and then store the corresponding values to the appropriate variables.
+
+Please ensure the keys in your file match exactly with the keys you are comparing in the code, as the comparison is case-sensitive. You may need to adapt this to your use case.
+
+This example assumes that your settings are stored in CONFIG_FILE_PATH. When used, it will attempt to read the current settings and apply them as needed. The actual application of these settings will depend on the specific software and hardware interfaces you are working with.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Call this function to update a setting
+void save_config_item(const char *key, int value) {
+    char value_str[12]; // Convert integer to string
+    sprintf(value_str, "%d", value); // Store integer value as string
+
+    FILE *file = fopen(Config_Path, "r+");
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file for reading and updating, trying to create a new one");
+        file = fopen(Config_Path, "w"); // Create new file if not available
+        if (!file) {
+            ESP_LOGE(TAG3, "Error creating configuration file");
+            return;
+        }
+    }
+
+    // Using dynamic memory allocation for the buffer
+    char *buffer = (char *)malloc(MAX_LINE_LENGTH * CONFIG_FILE_LINES);
+    if (buffer == NULL) {
+        ESP_LOGE(TAG3, "Failed to allocate memory for buffer");
+        fclose(file);
+        return;
+    }
+    memset(buffer, 0, MAX_LINE_LENGTH * CONFIG_FILE_LINES);
+
+    bool keyExists = false;
+    size_t current_length = 0; // Track current length of buffer
+
+    // Read through existing lines and update buffer
+    while (fgets(buffer + current_length, MAX_LINE_LENGTH, file)) {
+        char *line = buffer + current_length; // Pointer to current line
+        current_length += strlen(line); // Update current length
+
+        char current_key[MAX_LINE_LENGTH];
+        // Check if line contains the key
+        if (sscanf(line, "%[^=] =", current_key) == 1) {
+            if (strcmp(current_key, key) == 0) {
+                // Update the line with new value
+                int len = snprintf(line, MAX_LINE_LENGTH, "%s = %s\n", key, value_str);
+                if(len > 0) {
+                    current_length -= strlen(line); // Remove old length
+                    current_length += len; // Add new length
+                }
+                keyExists = true;
+            }
+        }
+    }
+
+    // If the key doesn't exist, add it at the end
+    if (!keyExists) {
+        int len = snprintf(buffer + current_length, MAX_LINE_LENGTH, "%s = %s\n", key, value_str);
+        if (len > 0) {
+            current_length += len;
+        }
+    }
+
+    // Truncate the file and write the entire buffer content
+    fclose(file); // Close the file and reopen to truncate
+    file = fopen(Config_Path, "w");
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file for writing");
+        free(buffer);
+        return;
+    }
+
+    fwrite(buffer, 1, current_length, file);
+    fclose(file);
+    free(buffer);
+    ESP_LOGI(TAG3, "Configuration file (brightness&cpu) updated successfully. CPU: %i and brightness: %i", cpuFrequency, brightness);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+char* trim_whitespace(char *str) {
+    while(isspace((unsigned char)*str)) str++;
+    if(*str == 0) return str;
+
+    char *end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+    *(end+1) = 0;
+
+    return str;
+}
+
+// Call this function to update a setting
+void save_config_item(const char *key, int value) {
+    // Intermediary buffers
+    char line[MAX_LINE_LENGTH];
+    char temp_buffer[MAX_LINE_LENGTH * CONFIG_FILE_LINES] = {0};
+    char new_line[MAX_LINE_LENGTH];
+
+    // Convert value to string
+    snprintf(new_line, MAX_LINE_LENGTH, "%s = %d\n", key, value);
+
+    // Open for reading
+    FILE *file = fopen(Config_Path, "r");
+    bool key_found = false;
+    size_t temp_buffer_length = 0;
+    
+    if (file) {
+        // Read each line
+        while (fgets(line, sizeof(line), file)) {
+            char read_key[MAX_LINE_LENGTH];
+            if (sscanf(line, "%[^=] =", read_key) == 1) {
+                // If the current line contains the key
+                if (strcmp(read_key, key) == 0) {
+                    // Replace the line with new_line
+                    strcpy(line, new_line);
+                    key_found = true;
+                }
+            }
+            // Add the (possibly updated) line to the temp_buffer
+            strcpy(temp_buffer + temp_buffer_length, line);
+            temp_buffer_length += strlen(line);
+        }
+        fclose(file);
+    }
+
+    // If the key was never found, append the new setting to the buffer
+    if (!key_found) {
+        strcpy(temp_buffer + temp_buffer_length, new_line);
+        temp_buffer_length += strlen(new_line);
+    }
+
+    // Re-open the file for writing (this will clear the file)
+    file = fopen(Config_Path, "w");
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file for writing.");
+        return;
+    }
+
+    fwrite(temp_buffer, sizeof(char), temp_buffer_length, file);
+    fclose(file);
+    ESP_LOGI(TAG3, "Config item saved: %s", new_line);
+}
+
+// Supply a buffer to hold each line from config file
+// Functionality: read values that match to keys 'brightness' and 'cpu_freq'
+void read_settings(int *brightnessV, int *cpu_freq) {
+    FILE *file = fopen(Config_Path, "r");
+    char line[MAX_LINE_LENGTH];
+
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file");
+        ESP_LOGI(TAG3, "Creating and Saving Default Configuration Values");
+        save_config_item("cpu_freq", cpuFrequency);
+        save_config_item("brightness", brightness);
+        return;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        char key[MAX_LINE_LENGTH], value[MAX_LINE_LENGTH];
+
+        // If line is a comment or blank line, ignore it
+        if ((line[0] == ';') | (line[0] == '#') | (line[0] == '\n')) continue;
+
+        if (sscanf(trim_whitespace(line), "%[^=]=%s", key, value) == 2) {
+            if (strcmp(key, "brightness") == 0) {
+                ESP_LOGI(TAG3, "Configuration file read brightness successfuly: %i", atoi(value));
+                *brightnessV = atoi(value);
+            } else if (strcmp(key, "cpu_freq") == 0) {
+                ESP_LOGI(TAG3, "Configuration file read CPU speed successfuly: %i", atoi(value));
+                *cpu_freq = atoi(value);
+            }
+        }
+    }
+    fclose(file);
+    ESP_LOGI(TAG3, "Configuration file (brightness&cpu) read successfully. CPU: %i and brightness: %i", *cpu_freq, *brightnessV);
+}
+
+
+
+
+
+char* trim_whitespace(char *str) {
+    while(isspace((unsigned char)*str)) str++;
+    if(*str == 0) return str;
+
+    char *end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+    *(end+1) = 0;
+
+    return str;
+}
+
+
+
+
+
+
+
+
+
+
+void save_config_item(const char *key, int value) {
+    // Temporary file path
+    const char *temp_file_path = "/path/to/temp_config.ini";
+
+    FILE *config_file = fopen(Config_Path, "r");
+    FILE *temp_file = NULL;
+    char line[MAX_LINE_LENGTH];
+    bool key_found = false;
+
+    // Open the temporary file for writing
+    temp_file = fopen(temp_file_path, "w");
+    if (!temp_file) {
+        ESP_LOGE(TAG3, "Could not open temporary file for writing.");
+        fclose(config_file);
+        return;
+    }
+
+    // Go through the configuration file line by line
+    while (config_file && fgets(line, sizeof(line), config_file)) {
+        char current_key[MAX_LINE_LENGTH];
+        // Check if the line contains the key
+        if (sscanf(line, "%[^=] =", current_key) == 1 && strcmp(current_key, key) == 0) {
+            key_found = true;
+            // Write the new key=value pair to the temp file
+            fprintf(temp_file, "%s = %d\n", key, value);
+        } else {
+            // Copy the line to the temp file as is
+            fputs(line, temp_file);
+        }
+    }
+
+    // If the key was not found in the file, add it
+    if (!key_found) {
+        fprintf(temp_file, "%s = %d\n", key, value);
+    }
+
+    // Close both files
+    if (config_file) {
+        fclose(config_file);
+    }
+    fclose(temp_file);
+
+    // Replace the old config file with the new one
+    if (remove(Config_Path) != 0) {
+        ESP_LOGE(TAG3, "Could not remove old configuration file.");
+    } else if (rename(temp_file_path, Config_Path) != 0) {
+        ESP_LOGE(TAG3, "Could not replace old configuration file.");
+    } else {
+        ESP_LOGI(TAG3, "Configuration item '%s' updated to '%d'.", key, value);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void save_config_item(const char *key, int value) {
+    char line[MAX_LINE_LENGTH] = {0};
+    char temp_buffer[MAX_LINE_LENGTH * CONFIG_FILE_LINES] = {0};
+    char new_line[MAX_LINE_LENGTH] = {0};
+
+    // Convert value to string
+    snprintf(new_line, MAX_LINE_LENGTH, "%s = %d\n", key, value);
+
+    // Open for reading
+    FILE *file = fopen(Config_Path, "r");
+    bool key_found = false;
+    
+    if (file) {
+        char read_key[MAX_LINE_LENGTH];
+        char *temp_ptr = temp_buffer; // Use a pointer to track position in temp_buffer
+        
+        // Read each line
+        while (fgets(line, sizeof(line), file)) {
+            // Clean the buffer
+            memset(read_key, 0, sizeof(read_key));
+            
+            // Check if the line contains the key
+            if (sscanf(line, "%[^=] = ", read_key) == 1) {
+                // If the current line contains the key, ignore it and set key_found
+                if (strcmp(read_key, key) == 0) {
+                    key_found = true;
+                    continue; // Do not copy this line to temp_buffer
+                }
+            }
+            // Copy other lines to temp_buffer
+            strcpy(temp_ptr, line);
+            temp_ptr += strlen(line); // Move pointer
+        }
+        fclose(file); // Close the file after reading contents
+
+        // If the key wasn't found, append the new line at the end of temp_buffer
+        if (!key_found) {
+            strcpy(temp_ptr, new_line); // Append new line
+        } else {
+            // Write updated line only if key was found
+            strcpy(temp_ptr, new_line); // Overwrite line
+        }
+    }
+
+    // Re-open the file for writing (this will clear the file if it exists)
+    file = fopen(Config_Path, "w");
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file for writing.");
+        return;
+    }
+
+    // Write updated buffer back to file
+    fwrite(temp_buffer, sizeof(char), strlen(temp_buffer), file);
+    fclose(file);
+    ESP_LOGI(TAG3, "Config item saved: %s", new_line);
+}
+
+
+
+
+
+
+
+
+
+
+
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+#######################################Attacks SubMenu#############################################################
+
+static const unsigned char image_Alert_9x8_bits[] U8X8_PROGMEM = {0x10,0x00,0x38,0x00,0x28,0x00,0x6c,0x00,0x6c,0x00,0xfe,0x00,0xee,0x00,0xff,0x01};
+static const unsigned char image_ButtonRight_4x7_bits[] U8X8_PROGMEM = {0x01,0x03,0x07,0x0f,0x07,0x03,0x01};
+static const unsigned char image_ButtonLeft_4x7_bits[] U8X8_PROGMEM = {0x08,0x0c,0x0e,0x0f,0x0e,0x0c,0x08};
+u8g2.setBitmapMode(1);
+u8g2.setFontMode(1);
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(6, 13, "Target AP");
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(6, 28, "Attack Duration");
+u8g2.drawFrame(29, 43, 70, 13);
+u8g2.setFont(u8g2_font_4x6_tr);
+u8g2.drawStr(34, 52, "Start Attack");
+u8g2.drawXBMP( 85, 45, 9, 8, image_Alert_9x8_bits);
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(76, 13, "Sample S...");
+u8g2.drawFrame(74, 4, 48, 12);
+u8g2.drawFrame(81, 19, 34, 11);
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(92, 28, "60");
+u8g2.drawXBMP( 107, 21, 4, 7, image_ButtonRight_4x7_bits);
+u8g2.drawXBMP( 85, 21, 4, 7, image_ButtonLeft_4x7_bits);
+
+
+
+
+
+
+
+
+
+
+To satisfy your requirements, I’ll outline an ESP-IDF style function that draws your custom menu, handles the conditional display of the “SELECT” string based on the variable Target_AP, toggles the inversion of the colors for the selected item, and manages a highlighted frame for the “Start Attack” option when selected.
+
+The drawAttackMenu function below is an ESP-IDF tailored version of the code you’ve provided:
+
+#include "u8g2.h"  // Include the library for the display
+
+// Add the U8X8_PROGMEM definition if not already present
+#ifndef U8X8_PROGMEM
+#define U8X8_PROGMEM U8X8_ATTRIBUTE_PROGMEM
+#endif
+
+// Bitmap constants
+static const unsigned char image_Alert_9x8_bits[] U8X8_PROGMEM = {0x10,0x00,0x38,0x00,0x28,0x00,0x6c,0x00,0x6c,0x00,0xfe,0x00,0xee,0x00,0xff,0x01};
+static const unsigned char image_ButtonRight_4x7_bits[] U8X8_PROGMEM = {0x01,0x03,0x07,0x0f,0x07,0x03,0x01};
+static const unsigned char image_ButtonLeft_4x7_bits[] U8X8_PROGMEM = {0x08,0x0c,0x0e,0x0f,0x0e,0x0c,0x08};
+
+// Assume external declarations for these variables/functions
+extern u8g2_t u8g2;
+extern char Target_AP[];  // This should be defined and updated elsewhere in your code
+extern int currentMenuIndex;  // This should keep track of the currently selected menu item
+
+void drawAttackMenu(u8g2_t *u8g2) {
+    u8g2_ClearBuffer(u8g2);
+
+    u8g2_SetBitmapMode(u8g2, 1);
+    u8g2_SetFontMode(u8g2, 1);
+
+    // Draw the static elements
+    u8g2_SetFont(u8g2, u8g2_font_haxrcorp4089_tr);
+    u8g2_DrawStr(u8g2, 6, 13, "Target AP");
+    u8g2_DrawStr(u8g2, 6, 28, "Attack Duration");
+    u8g2_DrawFrame(u8g2, 29, 43, 70, 13); 
+    u8g2_SetFont(u8g2, u8g2_font_4x6_tr);
+    u8g2_DrawStr(u8g2, 34, 52, "Start Attack");
+
+    // Draw dynamic elements based on content of Target_AP
+    char *displayText = strlen(Target_AP) > 0 ? Target_AP : "SELECT";
+    
+    // Ensure the string is not longer than the space in the UI for it (excluding the ellipsis)
+    char displayBuffer[10];  // Increase buffer size as needed
+    strncpy(displayBuffer, displayText, sizeof(displayBuffer) - 4);  // Save space for the possible ellipsis and null terminator
+    displayBuffer[sizeof(displayBuffer) - 4] = '\0';  // Ensure null termination
+    
+    // If the original string is longer than our buffer, append the ellipsis
+    if (strlen(displayText) > sizeof(displayBuffer) - 4) {
+        strcat(displayBuffer, "...");
+    }
+    
+    u8g2_SetDrawColor(u8g2, currentMenuIndex == 0 ? 2 : 1); // Invert color if selected
+    u8g2_DrawBox(u8g2, 74, 4, 48, 12);  // If selected, draw inverted box else draw frame
+    u8g2_DrawStr(u8g2, 76, 13, displayBuffer);
+
+    u8g2_SetDrawColor(u8g2, currentMenuIndex == 1 ? 2 : 1);
+    u8g2_DrawFrame(u8g2, 81, 19,
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    Certainly! To complete your function, I’ll add the logic for inverting the “Start Attack” text and displaying the frame around it when selected, and finish up the drawing calls for the increment/decrement arrows. I’ll also clean up the logic for handling the display’s dynamic text, taking into account its length and whether the variable Target_AP is empty or not.
+
+Here’s how the completed drawAttackMenu function looks:
+
+#include "u8g2.h"
+#include <string.h>
+
+// Bitmap constants defined earlier ...
+
+// Declarations of external variables ...
+extern u8g2_t u8g2;  // The display object
+extern char Target_AP[64];  // Assume 64 is the max length of AP name
+extern int currentMenuIndex; // Current menu index, for example, 0 for AP, 1 for duration, 2 for start
+
+// Define the indices for the menu items
+#define MENU_INDEX_AP 0
+#define MENU_INDEX_DURATION 1
+#define MENU_INDEX_START 2
+#define MENU_NUM_ITEMS 3  // Total number of menu items
+
+void drawAttackMenu(u8g2_t *u8g2) {
+    u8g2_ClearBuffer(u8g2);
+
+    // Draw the non-selected, static text elements
+    u8g2_SetFont(u8g2, u8g2_font_haxrcorp4089_tr);
+    u8g2_DrawStr(u8g2, 6, 13, "Target AP");
+    u8g2_DrawStr(u8g2, 6, 28, "Attack Duration");
+
+    // Draw the "Target AP" value or "SELECT" placeholder
+    char displayText[15];  // Room for "Sample S..." and null-terminator
+    if (strlen(Target_AP) == 0) {
+        strcpy(displayText, "SELECT");
+    } else {
+        strncpy(displayText, Target_AP, sizeof(displayText) - 4);  // leave room for null terminator and "..."
+        displayText[sizeof(displayText) - 4] = '\0';  // Ensure null termination
+        if (strlen(Target_AP) > sizeof(displayText) - 4) {
+            strcat(displayText, "...");  // Append ellipsis to indicate the text is truncated
+        }
+    }
+
+    // Determine whether "Target AP" is the selected menu item and set the draw color
+    u8g2_SetDrawColor(u8g2, currentMenuIndex == MENU_INDEX_AP ? 2 : 1);
+    u8g2_DrawBox(u8g2, 74, 4, 48, 12);  // This draws an inverted box if selected, otherwise a regular box
+    u8g2_DrawStr(u8g2, 76, 13, displayText);
+
+    // Draw the arrows and duration value, manage selection of duration
+    u8g2_SetDrawColor(u8g2, currentMenuIndex == MENU_INDEX_DURATION ? 2 : 1);
+    u8g2_DrawStr(u8g2, 92, 28, "60");  // Example value, replace with actual duration variable
+    u8g2_DrawXBMP(u8g2, 107, 21, 4, 7, image_ButtonRight_4x7_bits);  // Right arrow
+    u8g2_DrawXBMP(u8g2, 85, 21, 4, 7, image_ButtonLeft_4x7_bits);  // Left arrow
+
+    // Draw "Start Attack" button, manage selection of start
+    u8g2_SetFont(u8g2, u8g2_font_4x6_tr);
+    u8g2_SetDrawColor(u8g2, currentMenuIndex == MENU_INDEX_START ? 1 : 0);
+    u8g2_DrawFrame(u8g2, 29, 43, 70, 13);  // Frame around start, always present
+    // If start is selected, the area inside the button needs to be inverted, including the text and icon
+    if (currentMenuIndex == MENU_INDEX_START) {
+        u8g2_DrawBox(u8g2, 30, 44, 68, 11);  // Draw box to ensure inversion, considering text/icon are also inverted
+        u8g2_SetDrawColor(u8g2, 2);  // Set XOR mode for inversion
+        u8g2_DrawXBMP(u8g2, 85, 45, 9, 8, image_Alert_9x8_bits);  // Alarm icon left inverted due to XOR mode
+    } else {
+        u8g2_DrawXBMP(u8g2, 85, 45, 9, 8, image_Alert_9x8_bits);  // Alarm icon
+    }
+    u8g2_DrawStr(u8g2, 34, 52, "Start Attack");  // Text
+
+    // Reset draw color to default state
+    u8g2_SetDrawColor(u8g2, 1);
+
+    // Send the buffer to the display
+    u8g2_SendBuffer(u8g2);
+}
+Please note the following:
+
+The bitmap constants are reused from your initial snippet.
+The function will display “SELECT” if Target_AP is empty and truncate to fit the display if too long.
+The variable currentMenuIndex is used to check which menu item is currently selected and changes the draw color accordingly. Remember to update this variable elsewhere in your code; it should change when the user interacts with the menu.
+The function drawAttackMenu handles drawing all menu elements, including the conditional logic for selecting and inverting the color of the elements.
+This approach should be compatible with your ESP-IDF project and provide the functionality you’ve described. Make sure to replace placeholder values, like the “60” for the attack duration and the Target_AP length checks, with actual values from your application’s state.
+
+
+
+
+
+To make the drawAttackMenu function compatible with the menu index handling functions you’ve provided (increaseMenuItem, decreaseMenuItem, and handleButtonPress), you can integrate these functions with the current implementation keeping in mind that the logic within drawAttackMenu relies on a global variable currentMenuIndex.
+
+Here’s how you can tie everything together:
+
+Ensure currentMenuIndex is declared globally and will store the current index of the selected option in the attack menu.
+Modify increaseMenuItem and decreaseMenuItem functions to be used for different menus by passing a pointer to the current menu state.
+Use handleButtonPress to cycle through menu options and update currentMenuIndex accordingly.
+Here’s how they might look:
+
+// Assuming declarations for constants such as:
+// BUTTON_DOWN_PIN, BUTTON_UP_PIN, BUTTON_DEBOUNCE_DELAY, MAIN_MENU, ATTACK_MENU, etc.
+// and also assuming other menu state variables and pin/read related functions are defined correctly.
+
+int currentMenuIndex = 0;  // This variable will control the index in the attack menu
+
+void increaseMenuItem(int *selected_item, int max_items) {
+    if (++(*selected_item) >= max_items) {
+        *selected_item = 0;  // Loop back to the first item
+    }
+}
+
+void decreaseMenuItem(int *selected_item, int max_items) {
+    if (--(*selected_item) < 0) {
+        *selected_item = max_items - 1;  // Loop back to the last item
+    }
+}
+
+void handleButtonPress(int button_pin, int *currentMenuState) {
+    static uint64_t last_press_time = 0;
+
+    if (esp_timer_get_time() - last_press_time < BUTTON_DEBOUNCE_DELAY * 1000) {
+        return;  // Debounce button press
+    }
+
+    last_press_time = esp_timer_get_time();
+
+    switch (button_pin) {
+        case BUTTON_DOWN_PIN:
+            // Assuming you set currentMenuState to ATTACK_MENU when in attack menu
+            if (*currentMenuState == ATTACK_MENU) {
+                increaseMenuItem(&currentMenuIndex, MENU_NUM_ITEMS);
+            }
+            // Add logic for handling the other menu states if necessary.
+            break;
+
+        case BUTTON_UP_PIN:
+            if (*currentMenuState == ATTACK_MENU) {
+                decreaseMenuItem(&currentMenuIndex, MENU_NUM_ITEMS);
+            }
+            // Add logic for handling the other menu states if necessary.
+            break;
+        
+        // Add your additional button handling logic here
+    }
+
+    // Update the display based on the new menu index
+    // This assumes drawAttackMenu is designed to refresh the menu when called
+    if (*currentMenuState == ATTACK_MENU) {
+        drawAttackMenu(&u8g2);  // Assuming u8g2 is your display object
+    }
+}
+Ensure handleButtonPress is called appropriately when a button event is detected, and currentMenuState should be a variable that indicates the current menu context (e.g., MAIN_MENU, ATTACK_MENU, etc.). When the state is ATTACK_MENU, your currentMenuIndex will be updated accordingly.
+
+Remember to ensure that the new currentMenuIndex is taken into account when you are drawing your attack menu, as it will determine which item is highlighted or selected. The drawAttackMenu function should be called every time you need to update the menu display, which generally includes after a button press event has modified the currentMenuIndex.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FINAL FUNCTION
+
+// Function to draw Attack Configuration Menu
+void drawAttackMenu(u8g2_t *u8g2) {
+    u8g2_ClearBuffer(u8g2);
+
+    // Draw the non-selected, static text elements
+    u8g2_SetFont(u8g2, u8g2_font_haxrcorp4089_tr);
+    u8g2_DrawStr(u8g2, 6, 13, "Target AP");
+    u8g2_DrawStr(u8g2, 6, 28, "Attack Duration");
+
+    // Draw the "Target AP" value or "SELECT" placeholder
+    char displayText[15];  // Room for "Sample S..." and null-terminator
+    if (strlen(Target_AP) == 0) {
+        strcpy(displayText, "SELECT");
+    } else {
+        strncpy(displayText, Target_AP, sizeof(displayText) - 4);  // leave room for null terminator and "..."
+        displayText[sizeof(displayText) - 4] = '\0';  // Ensure null termination
+        if (strlen(Target_AP) > sizeof(displayText) - 4) {
+            strcat(displayText, "...");  // Append ellipsis to indicate the text is truncated
+        }
+    }
+
+    // Determine whether "Target AP" is the selected menu item and set the draw color
+    u8g2_SetDrawColor(u8g2, attMenuSelectedItem == MENU_INDEX_AP ? 2 : 1);
+    u8g2_DrawBox(u8g2, 74, 4, 48, 12);  // This draws an inverted box if selected, otherwise a regular box
+    u8g2_DrawStr(u8g2, 76, 13, displayText);
+
+    // Draw the arrows and duration value, manage selection of duration
+    u8g2_SetDrawColor(u8g2, attMenuSelectedItem == MENU_INDEX_DURATION ? 2 : 1);
+    u8g2_DrawStr(u8g2, 92, 28, "60");  // Example value, replace with actual duration variable
+    u8g2_DrawXBMP(u8g2, 107, 21, 4, 7, image_ButtonRight_4x7_bits);  // Right arrow
+    u8g2_DrawXBMP(u8g2, 85, 21, 4, 7, image_ButtonLeft_4x7_bits);  // Left arrow
+
+    // Draw "Start Attack" button, manage selection of start
+    u8g2_SetFont(u8g2, u8g2_font_4x6_tr);
+    u8g2_SetDrawColor(u8g2, attMenuSelectedItem == MENU_INDEX_START ? 1 : 0);
+    u8g2_DrawFrame(u8g2, 29, 43, 70, 13);  // Frame around start, always present
+    // If start is selected, the area inside the button needs to be inverted, including the text and icon
+    if (attMenuSelectedItem == MENU_INDEX_START) {
+        u8g2_DrawBox(u8g2, 30, 44, 68, 11);  // Draw box to ensure inversion, considering text/icon are also inverted
+        u8g2_SetDrawColor(u8g2, 2);  // Set XOR mode for inversion
+        u8g2_DrawXBMP(u8g2, 85, 45, 9, 8, image_Alert_9x8_bits);  // Alarm icon left inverted due to XOR mode
+    } else {
+        u8g2_DrawXBMP(u8g2, 85, 45, 9, 8, image_Alert_9x8_bits);  // Alarm icon
+    }
+    u8g2_DrawStr(u8g2, 34, 52, "Start Attack");  // Text
+
+    // Finally, draw the scrollbar
+    // draw()
+
+    // Reset draw color to default state
+    u8g2_SetDrawColor(u8g2, 1);
+
+    // Send the buffer to the display
+    u8g2_SendBuffer(u8g2);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+From your description, it seems there are a few issues to tackle:
+
+Box inversion only affects the color of the menu selection box without inverting the text and icons. When you select an item, you want the entire row, including text, icon, and background, to be inverted (XOR or inverted color).
+
+The “Start Attack” string disappears unless it’s the selected item. You want the “Start Attack” text to always be displayed, and only the frame and logo should appear when selected.
+
+Selection box for the “Attack Duration” item is not functioning properly.
+
+Let’s address each issue in the drawAttackMenu function:
+
+// Function to draw Attack Configuration Menu
+void drawAttackMenu(u8g2_t *u8g2) {
+    char displayText[15]; // ... your existing code for preparing displayText
+
+    u8g2_ClearBuffer(u8g2);
+
+    // Your existing code for drawing "Target AP" and "Attack Duration" ...
+
+    // Draw the "Start Attack" button text always, regardless of selection
+    u8g2_SetFont(u8g2, u8g2_font_4x6_tr);
+    u8g2_SetDrawColor(u8g2, 1);  // Default color
+    u8g2_DrawStr(u8g2, 34, 52, "Start Attack");
+
+    // Now invert the entire "Target AP" box if it is selected, including the text
+    if (attMenuSelectedItem == MENU_INDEX_AP) {
+        u8g2_SetDrawColor(u8g2, 2); // XOR mode for inversion
+        u8g2_DrawBox(u8g2, 74, 4, 48, 12);
+    }
+    // Regardless of selection, draw the "Target AP" display text
+    u8g2_SetDrawColor(u8g2, 1); // Default color
+    u8g2_DrawStr(u8g2, 76, 13, displayText);
+
+    // Your existing code for drawing the arrows...
+    
+    // If "Start Attack" is the selected item, draw the frame and logo around it
+    if (attMenuSelectedItem == MENU_INDEX_START) {
+        u8g2_SetDrawColor(u8g2, 1); // Ensure correct color for frame and logo
+        u8g2_DrawFrame(u8g2, 29, 43, 70, 13); // Frame around "Start Attack"
+        u8g2_DrawXBMP(u8g2, 85, 45, 9, 8, image_Alert_9x8_bits); // Alarm icon
+
+        // Invert the "Start Attack" button area to highlight selection
+        u8g2_SetDrawColor(u8g2, 2); // XOR mode for inversion
+        u8g2_DrawBox(u8g2, 30, 44, 68, 11);
+    } else {
+        // Only draw the icon when "Start Attack" is not selected
+        u8g2_SetDrawColor(u8g2, 1); // Default color
+        u8g2_DrawXBMP(u8g2, 85, 45, 9, 8, image_Alert_9x8_bits); // Alarm icon
+    }
+    
+    // Your existing code for drawing the scrollbar...
+    
+    u8g2_SetDrawColor(u8g2, 1); // Reset draw color to default state
+    u8g2_SendBuffer(u8g2); // Send the buffer to the display
+}
+By making these changes, you should see the following behavior:
+
+The entire box for “Target AP” is inverted – including the background, text, and any icons – when it’s the selected item. Other items retain their default appearance.
+
+The “Start Attack” text is always visible. When the item is selected, the frame and logo appear, and the selection is inverted to illustrate that it is the active choice.
+
+The issue with selection between “Target AP” and “Attack Duration” should be resolved with proper use of u8g2_SetDrawColor before drawing each element. They should now operate independently, without one selection affecting the other.
+
+These updates align with your described intentions for the menu appearance and behavior.
+
+
+
+
+
+
+
+
+static const unsigned char image_Alert_9x8_bits[] U8X8_PROGMEM = {0x10,0x00,0x38,0x00,0x28,0x00,0x6c,0x00,0x6c,0x00,0xfe,0x00,0xee,0x00,0xff,0x01};
+static const unsigned char image_ButtonLeft_4x7_bits[] U8X8_PROGMEM = {0x08,0x0c,0x0e,0x0f,0x0e,0x0c,0x08};
+static const unsigned char image_ButtonRight_4x7_bits[] U8X8_PROGMEM = {0x01,0x03,0x07,0x0f,0x07,0x03,0x01};
+u8g2.setBitmapMode(1);
+u8g2.setFontMode(1);
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(6, 28, "Attack Duration             <50>");
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(6, 13, "Target AP");
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(30, 52, "Start Attack");
+u8g2.drawFrame(23, 41, 82, 15);
+u8g2.drawXBMP( 88, 44, 9, 8, image_Alert_9x8_bits);
+u8g2.drawXBMP( 98, 21, 4, 7, image_ButtonLeft_4x7_bits);
+u8g2.drawXBMP( 115, 21, 4, 7, image_ButtonRight_4x7_bits);
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(71, 14, "Sample st...");
+u8g2.drawFrame(69, 5, 50, 11);
+
+
+
+
+
+
+
+
+
+
+
+
+Let me clarify the implementation from the previous response and adapt it to better meet the requirements, including the dynamic att_duration_time and the frame logic around the “Target AP” option.
+
+Target AP frame logic: When not selected, there is no frame around “Target AP”, but when selected, the entire row, including the text, will be inverted (XOR effect).
+Attack Duration dynamic string: The “Attack Duration” string will display a dynamically read value from att_duration_time.
+Let’s update the drawMenuRow function and provide commentary to clarify the code:
+
+// Function prototype for clarity
+void drawMenuRow(u8g2_t *u8g2, const char *label, const char *value, int selectedItemIndex, int rowIndex, int frameX, int frameY, int frameW, int frameH, int yPos, int dynamicValue);
+
+// Function to draw individual rows of the Attack Configuration Menu
+void drawAttackMenu(u8g2_t *u8g2, int attMenuSelectedItem, int att_duration_time) {
+    extern char Target_AP[64]; // Assuming this is declared globally and holds the Target Access Point name.
+
+    u8g2_ClearBuffer(u8g2);
+
+    // Draw each menu row with respective options
+    drawMenuRow(u8g2, "Target AP", Target_AP, attMenuSelectedItem, MENU_INDEX_AP, 0, 5, 128, 16, 13, -1);
+    drawMenuRow(u8g2, "Attack Duration             <", NULL, attMenuSelectedItem, MENU_INDEX_DURATION, 0, 25, 128, 16, 28, att_duration_time);
+    drawMenuRow(u8g2, "Start Attack", NULL, attMenuSelectedItem, MENU_INDEX_START, 0, 45, 128, 16, 52, -1);
+
+    u8g2_SendBuffer(u8g2);
+}
+
+// Helper function to encapsulate drawing a single menu row
+void drawMenuRow(u8g2_t *u8g2, const char *label, const char *value, int selectedItemIndex, int rowIndex, int frameX, int frameY, int frameW, int frameH, int yPos, int dynamicValue) {
+    char displayText[64];
+    
+    // If the "Target AP" row is selected and the value string is empty
+    if (rowIndex == MENU_INDEX_AP && (value == NULL strlen(value) == 0)) {
+        snprintf(displayText, sizeof(displayText), "SELECT");
+    }
+    // Else if the "Target AP" row is selected and the value string has text, truncate it accordingly
+    else if (rowIndex == MENU_INDEX_AP && value != NULL) {
+        snprintf(displayText, sizeof(displayText) - 4, "%s", value);  // Copies and guarantees null-termination
+        if (strlen(value) > sizeof(displayText) - 4) {
+            strcat(displayText, "...");  // Truncate with ellipsis
+        }
+    }
+    // If the "Attack Duration" row needs to display a dynamically read value
+    else if (rowIndex == MENU_INDEX_DURATION && dynamicValue >= 0) {
+        snprintf(displayText, sizeof(displayText), "Attack Duration             <%d", dynamicValue);  // Concatenate variable value
+    } else {
+        snprintf(displayText, sizeof(displayText), "%s", label);  // Directly use the label for non-dynamic rows
+    }
+
+    // XOR mode if row is selected to invert colors
+    u8g2_SetDrawColor(u8g2, selectedItemIndex == rowIndex ? 2 : 1);
+
+    if (selectedItemIndex == rowIndex) {
+        // Invert entire row
+        u8g2_DrawBox(u8g2, frameX, frameY, frameW, frameH);
+        // Set font color to be XOR'd for text visibility against the inverted background
+        u8g2_SetFontMode(u8g2, 1); // Use XOR mode for text
+    } else {
+        // Ensure normal mode for non-selected rows
+        u8g2_SetFontMode(u8g2, 0);
+    }
+
+    // Draw the text for the menu item
+    u8g2_SetFont(u8g2, u8g2_font_haxrcorp4089_tr);
+    u8g2_DrawStr(u8g2, 6, yPos, displayText);
+
+    // Reset drawing color to default for the next elements
+    u8g2_SetDrawColor(u8g2, 1);
+}
+For the “Attack Duration” row to work properly with the dynamic value (att_duration_time), we pass it as an argument to drawMenuRow and then use snprintf to construct the string, ensuring that the numerical value is correctly included.
+
+By using snprintf, we avoid buffer overflows and create a string with the right formatting regardless of the length of the dynamic value. In the case of the “Target AP” row, we decide whether to display ‘SELECT’ or the truncated Target AP name depending on whether Target_AP is empty.
+
+With this code, the frame is not constantly around any option, instead, a bounding box invert effect is used to highlight the selected menu item. When a menu row is selected, its draw color is set to XOR mode (2), which inverts the colors of that area on the display, achieving the highlight effect. The label text is displayed inverted as well due to setting the font mode to XOR (1) for the selected item.
+
+Please replace MENU_INDEX_AP, MENU_INDEX_DURATION, and MENU_INDEX_START with the appropriate index constants for your menu items. Also, adjust the frameX, frameY, frameW, and frameH parameters to fit the dimensions and layout of your actual menu items.
+
+
+
+
+
+
+// Function to draw individual rows of the Attack Configuration Menu
+// void drawAttackMenu(u8g2_t *u8g2) {
+//     // extern char Target_AP[64]; // Assuming this is declared globally and holds the Target Access Point name.
+
+//     u8g2_ClearBuffer(u8g2);
+
+//     // Draw each menu row with respective options
+//     drawMenuRow(u8g2, "Target AP", Target_AP, attMenuSelectedItem, MENU_INDEX_AP, 0, 5, 128, 16, 13, -1);
+//     drawMenuRow(u8g2, "Attack Duration             <", NULL, attMenuSelectedItem, MENU_INDEX_DURATION, 0, 25, 128, 16, 28, att_duration_time);
+//     drawMenuRow(u8g2, "Start Attack", NULL, attMenuSelectedItem, MENU_INDEX_START, 0, 45, 128, 16, 52, -1);
+
+//     u8g2_SendBuffer(u8g2);
+// }
+
+// Helper function to encapsulate drawing a single menu row
+// void drawMenuRow(u8g2_t *u8g2, const char *label, const char *value, int selectedItemIndex, int rowIndex, int frameX, int frameY, int frameW, int frameH, int yPos, int duration_dynamicValue) {
+//     char displayText[64];
+    
+//     // Determine the text to display for Target AP
+//     if (rowIndex == MENU_INDEX_AP) {
+//         if ((value == NULL) | (strlen(value) == 0)) {
+//             strcpy(displayText, "SELECT");  // No SSID, so prompt for selection.
+//         } else {
+//             snprintf(displayText, sizeof(displayText) - 4, "%s", value);  // Copy as much of the SSID as will fit.
+//             if (strlen(value) > sizeof(displayText) - 4) {
+//                 strcat(displayText, "...");  // SSID is too long, so truncate it.
+//             }
+//         }
+//         // Draw frame around "Target AP" dynamic text
+//         u8g2_DrawFrame(u8g2, 69, 5, 50, 11); // Specific coordinates for "Target AP" frame
+//     }
+//     // Determine the text to display for Attack Duration
+//     else if ((rowIndex == MENU_INDEX_DURATION) && (duration_dynamicValue >= 0)) {
+//         snprintf(displayText, sizeof(displayText), "Attack Duration             <%d", duration_dynamicValue);  // Show dynamic attack duration.
+//     }
+//     // Default label for anything else
+//     else {
+//         snprintf(displayText, sizeof(displayText), "%s", label);
+//     }
+
+//     // Set XOR mode if current row is selected, to invert colors
+//     u8g2_SetDrawColor(u8g2, selectedItemIndex == rowIndex ? 2 : 1);
+
+//     // If current row is selected, invert entire row
+//     if (selectedItemIndex == rowIndex) {
+//         u8g2_DrawBox(u8g2, frameX, frameY, frameW, frameH); // Invert the area for selected row.
+//         u8g2_SetFontMode(u8g2, 1); // Use XOR mode for the text to ensure it is visible against the inverted background.
+//     } else {
+//         u8g2_SetFontMode(u8g2, 0); // Normal font mode for non-selected rows.
+//     }
+
+//     // Draw the label (and value for "Target AP") for the menu row
+//     u8g2_SetFont(u8g2, u8g2_font_haxrcorp4089_tr);
+//     u8g2_DrawStr(u8g2, 6, yPos, displayText); // Position for label (and value).
+
+//     // Reset drawing color to default for other elements
+//     u8g2_SetDrawColor(u8g2, 1);
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+u8g2.setBitmapMode(1);
+u8g2.setFontMode(1);
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(4, 22, "TextLinuxMoto");
+u8g2.setFont(u8g2_font_4x6_tr);
+u8g2.drawStr(16, 7, "SSID");
+u8g2.setFont(u8g2_font_4x6_tr);
+u8g2.drawStr(95, 7, "RSSI");
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(4, 34, "KEYVAN");
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(4, 46, "Man oTo");
+u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+u8g2.drawStr(4, 58, "JayegaheBenzin");
+u8g2.drawCircle(97, 18, 3);
+u8g2.drawCircle(107, 18, 3);
+u8g2.drawCircle(117, 18, 3);
+u8g2.drawLine(0, 9, 120, 9);
+u8g2.drawDisc(87, 18, 3);
+u8g2.drawDisc(87, 30, 3);
+u8g2.drawCircle(117, 30, 3);
+u8g2.drawCircle(107, 30, 3);
+u8g2.drawCircle(97, 30, 3);
+u8g2.drawDisc(87, 42, 3);
+u8g2.drawCircle(117, 42, 3);
+u8g2.drawDisc(97, 42, 3);
+u8g2.drawDisc(107, 42, 3);
+u8g2.drawDisc(97, 56, 3);
+u8g2.drawDisc(87, 56, 3);
+u8g2.drawCircle(117, 56, 3);
+u8g2.drawCircle(107, 56, 3);
+
+
+
+
+
+
+void save_config_item(const char *key, int value) {
+    char line[MAX_LINE_LENGTH] = {0};
+    char temp_buffer[MAX_LINE_LENGTH * CONFIG_FILE_LINES] = {0};
+    char new_line[MAX_LINE_LENGTH] = {0};
+
+    // Convert value to string
+    snprintf(new_line, MAX_LINE_LENGTH, "%s = %d\n", key, value);
+
+    // Open for reading
+    FILE *file = fopen(Config_Path, "r");
+    bool key_found = false;
+    
+    if (file) {
+        char read_key[MAX_LINE_LENGTH];
+        char *temp_ptr = temp_buffer; // Use a pointer to track position in temp_buffer
+
+        // memset(read_key, 0, sizeof(read_key)); // Clean the buffer
+        // Read each line
+        while (fgets(line, sizeof(line), file)) {
+            // Check if the line contains the key
+            if (sscanf(line, "%[^=] =", read_key) == 1 && strcmp(read_key, key) == 0) {
+                ESP_LOGI(TAG3, "KEY FOUND.");
+                key_found = true; // Key has been found
+                // Add updated key-value pair, no need to copy this line to temp_buffer
+                strcpy(temp_ptr, new_line);
+                temp_ptr += strlen(new_line); // Move pointer past new line
+                continue; // Skip appending the current line
+            }
+            // Copy other lines to temp_buffer
+            strcpy(temp_ptr, line);
+            temp_ptr += strlen(line); // Move pointer
+        }
+        fclose(file); // Close the file after reading contents
+
+        // Append the new key-value pair if the key was not found
+        if (!key_found) {
+            ESP_LOGI(TAG3, "Appending new key-value pair.");
+            strcpy(temp_ptr, new_line);
+        }
+    }
+
+    // Re-open the file for writing (this will clear the file if it exists)
+    file = fopen(Config_Path, "w");
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file for writing.");
+        return;
+    }
+
+    // Write updated buffer back to file
+    fwrite(temp_buffer, sizeof(char), strlen(temp_buffer), file);
+    fclose(file);
+    ESP_LOGI(TAG3, "Config item saved: %s", new_line);
+}
+
+
+
+
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+*****************************************
+*****************************************
+*****************************************
+*****************************************
+MY PROMPT:
+
+does using FATfs with ESP-IDF understand directories? like can i save my config.ini in settings directory and save write_hccapx_to_sd in attacks/ directory? here's my code for saving settings and hccapx
+// Function to write the hccapx file to SD card
+static esp_err_t write_hccapx_to_sd(const char *sd_path, const hccapx_t *hccapx_data) {
+    FILE* file = fopen(sd_path, "wb");
+
+
+    if (!file) {
+        ESP_LOGE(TAG, "Failed to open file for writing");
+        return ESP_FAIL;
+    }
+
+
+    size_t written = fwrite(hccapx_data, sizeof(hccapx_t), 1, file);
+    
+    if (written != 1) {
+        ESP_LOGE(TAG, "Failed to write HCCAPX to SD card");
+        fclose(file);
+        return ESP_FAIL;
+    }
+
+
+    fclose(file);
+    ESP_LOGI(TAG, "HCCAPX successfully saved to SD card");
+    return ESP_OK;
+}
+void save_config_item(const char *key, int value) {
+    char line[MAX_LINE_LENGTH] = {0};
+    char temp_buffer[MAX_LINE_LENGTH * CONFIG_FILE_LINES] = {0};
+    char new_line[MAX_LINE_LENGTH] = {0};
+
+
+    // Convert value to string
+    snprintf(new_line, MAX_LINE_LENGTH, "%s = %d\n", key, value);
+
+
+    // Open for reading
+    FILE *file = fopen(Config_Path, "r");
+    bool key_found = false;
+    
+    if (file) {
+        char read_key[MAX_LINE_LENGTH];
+        char *temp_ptr = temp_buffer; // Use a pointer to track position in temp_buffer
+
+
+        // memset(read_key, 0, sizeof(read_key)); // Clean the buffer
+        // Read each line
+        while (fgets(line, sizeof(line), file)) {
+            // Check if the line contains the key
+            // if (sscanf(line, "%[^=] =", read_key) == 1 && strcmp(read_key, key) == 0) {
+            if(strstr(line, key)) {
+                ESP_LOGI(TAG3, "KEY FOUND.");
+                key_found = true; // Key has been found
+                // Add updated key-value pair, no need to copy this line to temp_buffer
+                strcpy(temp_ptr, new_line);
+                temp_ptr += strlen(new_line); // Move pointer past new line
+                continue; // Skip appending the current line
+            }
+            // Copy other lines to temp_buffer
+            strcpy(temp_ptr, line);
+            temp_ptr += strlen(line); // Move pointer
+        }
+        fclose(file); // Close the file after reading contents
+
+
+        // Append the new key-value pair if the key was not found
+        if (!key_found) {
+            ESP_LOGI(TAG3, "Appending new key-value pair.");
+            strcpy(temp_ptr, new_line);
+        }
+    }
+
+
+    // Re-open the file for writing (this will clear the file if it exists)
+    file = fopen(Config_Path, "w");
+    if (!file) {
+        ESP_LOGE(TAG3, "Error opening configuration file for writing.");
+        return;
+    }
+
+
+    // Write updated buffer back to file
+    fwrite(temp_buffer, sizeof(char), strlen(temp_buffer), file);
+    fclose(file);
+    ESP_LOGI(TAG3, "Config item saved: %s", new_line);
+}
+and these at top of my file:
+const char *Config_Path = MOUNT_POINT"/config.txt"; // config.ini is the name
+
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+XXXXXXXXXXXXXXXXXX***********************
+*****************************************
+*****************************************
+*****************************************
+*****************************************
+
+
+
+
+// Function to draw Attacking Screen
+void draw_start_attack(u8g2_t *u8g2, uint8_t Attack_Timeout) {
+    // Initialize your display code here
+    u8g2_ClearBuffer(u8g2);
+    u8g2_SetDrawColor(u8g2, 1);
+    u8g2_SetFont(u8g2, u8g2_font_profont22_tr);
+    u8g2_DrawStr(u8g2, 16, 38, "ATTACKING");
+    u8g2_SendBuffer(u8g2);
+
+    // Reset your event group
+    xEventGroupClearBits(attack_event_group, ATTACK_COUNTER_UPDATE ATTACK_COMPLETE);
+
+    // Start attack in a separate task
+    xTaskCreate(attack_task, "attack_task", 2048, NULL, 5, NULL);
+
+    // Countdown timer
+    for (int counter = Attack_Timeout; counter >= 0; counter--) {
+        // Wait for the update event
+        xEventGroupWaitBits(attack_event_group, ATTACK_COUNTER_UPDATE, pdTRUE, pdFALSE, portMAX_DELAY);
+
+        // Draw the current timer value here, i.e., `counter` / `Attack_Timeout`
+        char timer_str[20];
+        snprintf(timer_str, 20, "%d / %d", counter, Attack_Timeout);
+        u8g2_DrawStr(u8g2, 16, 58, timer_str); // Place this properly
+        u8g2_SendBuffer(u8g2);
+
+        // Check if the attack has completed
+        if(xEventGroupGetBits(attack_event_group) & ATTACK_COMPLETE) {
+            break; // Exit the loop if the attack is complete
+        }
+    }
+
+    // Now the attack has finished, save the result
+    hccapx_t *hccapx_data = hccapx_serializer_get();
+    // Use your function for saving hccapx_data to SD card or handling it as needed
+    save_hccapx_to_sd("/sdcard/attack_result.hccapx", hccapx_data);
+}

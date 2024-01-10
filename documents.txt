@@ -1,0 +1,92 @@
+Certainly! Reading battery voltage on an ESP32 and estimating the battery percentage is a two-step process. First, you need to physically wire your battery to the ESP32, and second, write the software to read the voltage and convert it to a percentage.
+
+Wiring the Battery to ESP32
+Connect the Battery:
+Connect your LI-ION/PO 3.7V battery’s positive terminal to the ESP32’s 5V pin if it has an onboard voltage regulator (or ‘VIN’ pin, depending on your module), and the negative terminal to any GND pin.
+
+Voltage Divider:
+Because the ESP32’s ADC (Analog-to-Digital Converter) reference voltage is 3.3V and your battery can have a voltage higher than 3.3V when fully charged, you need to create a voltage divider circuit to step down the voltage into a readable range for the ADC.
+
+You can do this using two resistors to divide the voltage:
+
+Connect a resistor (R1) between the battery’s positive terminal and the ADC pin (e.g., GPIO34).
+Connect another resistor (R2) between the ADC pin (GPIO34) and ground.
+The resistors R1 and R2 should be chosen to make sure the voltage at GPIO34 never exceeds 3.3V (typically R1 could be twice the value of R2).
+Battery Charger:
+If you use a rechargeable battery, you should also incorporate a charging module suitable for LI-ION/PO batteries. Make sure that it has overcharge protection.
+
+Writing the Code
+Configure the ADC:
+You need to initialize and configure the ADC within your code to read the voltage level from the pin the voltage divider is connected to.
+
+Voltage Reading Function:
+Create a function that reads the raw ADC value and converts it to the actual battery voltage based on the resistor values used in your voltage divider.
+
+Mapping Voltage to Battery Percentage:
+Define a function to map this voltage to the corresponding battery percentage. The exact correspondence between voltage and state of charge can vary based on the specific battery chemistry and should ideally be derived from a discharge curve for the battery.
+
+Here’s an example of what the code might look like:
+
+#include <driver/adc.h>
+#include "esp_adc_cal.h"
+
+#define DEFAULT_VREF    1100        // Use adc2_vref_to_gpio() to obtain a better estimate
+#define NO_OF_SAMPLES   64          // Multisampling
+
+// Your voltage divider ratio, R1 and R2 values determine Vmax readable
+const float Vmax = 4.2;      // Maximum voltage of battery
+const float Vmin = 3.0;      // Minimum voltage of battery before shutdown
+const float R1 = 1000.0;     
+const float R2 = 1000.0;     
+
+// ADC1 channel 0 is GPIO36
+static const adc_channel_t channel = ADC_CHANNEL_0;     
+
+// Attenuation so we can read higher voltages
+static const adc_atten_t atten = ADC_ATTEN_DB_11;  
+static const adc_unit_t unit = ADC_UNIT_1;
+
+// Function to initialize ADC
+void init_adc() {
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(channel, atten);
+}
+
+// Function to read voltage
+float read_battery_voltage() {
+    uint32_t adc_reading = 0;
+    for (int i = 0; i < NO_OF_SAMPLES; i++) {
+        adc_reading += adc1_get_raw((adc1_channel_t)channel);
+    }
+    adc_reading /= NO_OF_SAMPLES;
+    // Convert adc_reading to voltage:
+    float voltage = esp_adc_cal_raw_to_voltage(adc_reading, DEFAULT_VREF);
+    return voltage / (R2 / (R1 + R2)); // Convert back to battery voltage
+}
+
+// Function to calculate battery percentage
+int calculate_battery_percentage(float voltage) {
+    if (voltage >= Vmax) {
+        return 100;
+    } else if (voltage <= Vmin) {
+        return 0;
+    } else {
+        float battery_percentage = (voltage - Vmin) / (Vmax - Vmin) * 100;
+        return (int) battery_percentage;
+    }
+}
+
+void app_main() {
+    init_adc();
+    while (1) {
+        float voltage = read_battery_voltage();
+        int battery_percentage = calculate_battery_percentage(voltage);
+        
+        // Now you can display this battery_percentage on your screen
+        printf("Battery Percentage: %d%%\n", battery_percentage);
+
+        // Delay for a bit before reading again
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+This is a simplified example of what you might need to adjust to fit your exact situation. Battery percentage indicators are approximate and not linear. A lookup table based on the battery discharge curve will give you the most accurate representation of the state of charge. Also, some additional coding would be needed to deal with the ESP-IDF specifics and potential ADC calibration for more accurate measurements.
