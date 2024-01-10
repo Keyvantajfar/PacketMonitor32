@@ -47,8 +47,8 @@ Also please be aware that not every packet can be saved all the time! If more pa
 <!-- **2.** Install this ESP8266/ESP32 OLED library: https://github.com/squix78/esp8266-oled-ssd1306  -->
 <!-- **3.** [Download](https://github.com/spacehuhn/PacketMonitor32/archive/master.zip) and unzip the repository  -->
 <!-- **4.** Open PacketMonitor32.ino with Arduino  -->
-**2.** Compile the Source Code using idf.py -build
-**3.** Flash the firmware using idf.py -flash
+**1.** Compile the Source Code using idf.py -build
+**2.** Flash the firmware using idf.py -flash
 
 <!-- If you ran into upload problems, try setting the flash frequency to 40MHz and the upload speed 115200.  -->
 <!-- If you want to use your own hardware, you may want to edit the settings in lines 22 - 32.  -->

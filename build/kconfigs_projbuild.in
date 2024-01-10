@@ -1,0 +1,6 @@
+source "/home/keyvan/work/Arduino/ESP-IDF-V5.1/esp-idf-v4.1.4/components/bootloader/Kconfig.projbuild"
+source "/home/keyvan/work/Arduino/ESP-IDF-V5.1/esp-idf-v4.1.4/components/esp_app_format/Kconfig.projbuild"
+source "/home/keyvan/work/Arduino/ESP-IDF-V5.1/esp-idf-v4.1.4/components/esp_rom/Kconfig.projbuild"
+source "/home/keyvan/work/Arduino/ESP-IDF-V5.1/esp-idf-v4.1.4/components/esptool_py/Kconfig.projbuild"
+source "/home/keyvan/work/Arduino/ESP-IDF-V5.1/esp-idf-v4.1.4/components/partition_table/Kconfig.projbuild"
+source "/home/keyvan/Desktop/packetmonitor32/main/Kconfig.projbuild"
