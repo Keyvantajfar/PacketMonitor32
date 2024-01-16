@@ -2,34 +2,34 @@
 	"sources" : 
 	[
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/CMakeFiles/bootloader"
+			"file" : "/tmp/PacketMonitor32/build/CMakeFiles/bootloader"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/CMakeFiles/bootloader.rule"
+			"file" : "/tmp/PacketMonitor32/build/CMakeFiles/bootloader.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/CMakeFiles/bootloader-complete.rule"
+			"file" : "/tmp/PacketMonitor32/build/CMakeFiles/bootloader-complete.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule"
 		},
 		{
-			"file" : "/home/keyvan/Desktop/packetmonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule"
+			"file" : "/tmp/PacketMonitor32/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule"
 		}
 	],
 	"target" : 
