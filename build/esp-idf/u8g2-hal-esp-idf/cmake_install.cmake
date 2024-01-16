@@ -1,4 +1,4 @@
-# Install script for directory: /home/keyvan/Desktop/packetmonitor32/components/u8g2-hal-esp-idf
+# Install script for directory: /tmp/PacketMonitor32/components/u8g2-hal-esp-idf
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -1,4 +1,4 @@
-# Install script for directory: /home/keyvan/Desktop/packetmonitor32/main
+# Install script for directory: /tmp/PacketMonitor32/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
