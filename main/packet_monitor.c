@@ -404,7 +404,7 @@ void packet_monitor(void) {
     }
 
     // Create a task that will be pinned to the second core
-    xTaskCreatePinnedToCore(coreTask, "coreTask", 2500, NULL, 0, NULL, 1); // Mimics the code below
+    xTaskCreatePinnedToCore(coreTask, "coreTask", 2500, NULL, 1, NULL, 1); // Mimics the code below
     // second core
     // xTaskCreatePinnedToCore(
     // coreTask,               /* Function to implement the task */
