@@ -209,7 +209,7 @@ void buffer_save() {
     // buffers are already emptied, therefor saving is unecessary
     if((useA && bufSizeB == 0) || (!useA && bufSizeA == 0)) {
         // Nothing to save
-        ESP_LOGI(TAG, "useA: %s, bufA %u, bufB %u\n",useA ? "true" : "false", bufSizeA, bufSizeB); // for debug porpuses
+        // ESP_LOGI(TAG, "useA: %s, bufA %u, bufB %u\n",useA ? "true" : "false", bufSizeA, bufSizeB); // for debug porpuses
         return;
     }
 
