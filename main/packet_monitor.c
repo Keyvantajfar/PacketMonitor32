@@ -234,15 +234,6 @@ static void wifi_promiscuous(void* buf, wifi_promiscuous_pkt_type_t type) {
     }
 }
 
-
-// Initialize NVS in app_main
-// esp_err_t ret = nvs_flash_init();
-// if (ret == ESP_ERR_NVS_NO_FREE_PAGES ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-//   ESP_ERROR_CHECK(nvs_flash_erase());
-//   ret = nvs_flash_init();
-// }
-// ESP_ERROR_CHECK(ret);
-
 void drawMonitorScreen(u8g2_t *u8g2) { /**************************needs a little bit of tweaking on the last loop****************************************/
     float multiplicator = get_multiplicator();
     char buffer[10]; // Buffer for string conversion
@@ -257,39 +248,6 @@ void drawMonitorScreen(u8g2_t *u8g2) { /**************************needs a little
     }
 
     u8g2_ClearBuffer(u8g2);
-    
-    // Channel
-    // sprintf(buffer, "%ld", ch);
-    // u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
-    // u8g2_DrawStr(u8g2, 10-5, 10, buffer);
-    // u8g2_DrawStr(u8g2, 15, 10, "|");
-    
-    // // RSSI
-    // sprintf(buffer, "%d", rssi);
-    // // u8g2_DrawStr(u8g2, 30-5, 10, buffer);
-    // u8g2_DrawStr(u8g2, 26-5, 10, buffer);
-    // // u8g2_DrawStr(u8g2, 34-5, 10, "|");
-
-    // // Packets counter
-    // sprintf(buffer, "%lu", tmpPacketCounter);
-    // u8g2_DrawStr(u8g2, 76-5, 10, buffer);
-    // u8g2_DrawStr(u8g2, 88-5, 10, "[");
-    
-    // // Deauths
-    // sprintf(buffer, "[%lu]", deauths);
-    // // u8g2_DrawStr(u8g2, 106-5, 10, buffer);
-    // u8g2_DrawStr(u8g2, 90-5, 10, buffer);
-    // u8g2_DrawStr(u8g2, 112-5, 10, "]");
-    // u8g2_DrawStr(u8g2, 114-5, 10, "|");
-    
-    // // SD card status
-    // sprintf(buffer,"%s", useSD ? "SD" : "");
-    // u8g2_DrawStr(u8g2, 128-10, 10, buffer);
-    
-    // // Static Label for Packets
-    // // u8g2_DrawStr(u8g2, 36-5, 10, "Pkts:");
-    // u8g2_DrawStr(u8g2, 34, 10, "|");
-    // u8g2_DrawStr(u8g2, 42, 10, "Pkts:");
 
     // Channel
     sprintf(buffer, "%ld", ch);
@@ -471,7 +429,7 @@ void coreTask(void *pvParameters) {
         if (useSD) buffer_save();
 
         // Update display every second (refresh rate)
-        if ((currentTimeUs - lastDrawTime) > 600000) { // Compare against 1 second in microseconds
+        if ((currentTimeUs - lastDrawTime) > 1000000) { // Compare against 1 second in microseconds
             lastDrawTime = currentTimeUs;
             // log_heap_usage();
 
@@ -485,6 +443,7 @@ void coreTask(void *pvParameters) {
             rssiSum = 0;
 
         }
+        // TODO:
         // For serial input, consider using UART driver APIs to read serial data in ESP-IDF
         // Serial input
         // if (Serial.available()) {
