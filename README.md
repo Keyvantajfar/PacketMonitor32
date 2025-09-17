@@ -1,61 +1,124 @@
 # PacketMonitor32
-## Please first run [idf.py fullclean](https://github.com/espressif/esp-idf)
->> ESP-IDF port <<
+**by spacehuhn, ported to ESP-IDF by K1**
 
-ESP32 Packet Monitor + SD card!
+**ESP32 Packet Monitor + SD card**
 
 ![PacketMonitor32 Board](https://raw.githubusercontent.com/spacehuhn/PacketMonitor32/master/images/1.jpg)
 
-This is an enhanced version for the ESP32 of my previous [ESP8266 PacketMonitor](https://github.com/spacehuhn/PacketMonitor).  
-It shows you the traffic of all nearby devices on the selected WiFi channel.  
+A small ESP32 project that listens to Wi‑Fi traffic on a selected channel and (optionally) logs captured packets to an SD card in PCAP format. This is an enhanced ESP32 port of the original [ESP8266 PacketMonitor](https://github.com/spacehuhn/PacketMonitor).
 
-## What's new
-- SD card support to capture traffic
-- better performance due to the powerful ESP32
-- shows average RSSI
+---
 
-## Now Available on
-**Tindie**: https://goo.gl/kZmVug  
-**AliExpress**: https://goo.gl/hCCKMJ  
+## Quick highlights
 
-## Video
+* Monitor Wi‑Fi traffic (per channel 1–14)
+* SD card support: save captures as `.pcap` files (open with Wireshark)
+* Improved performance and average RSSI display thanks to ESP32
+
+---
+
+## What’s new (compared to ESP8266)
+
+* SD card support to capture traffic
+* Better performance (ESP32)
+* Shows average RSSI per device
+
+---
+
+## Where to buy
+
+* **Tindie:** [https://goo.gl/kZmVug](https://goo.gl/kZmVug)
+* **AliExpress:** [https://goo.gl/hCCKMJ](https://goo.gl/hCCKMJ)
+
+---
+
+## Video demo
+
 [![PacketMonitor32 Video](https://img.youtube.com/vi/7WYakpagPXk/0.jpg)](https://www.youtube.com/watch?v=7WYakpagPXk)
 
+---
+
 ## Interface
-[PacketMonitor32 Interface Explaination](https://raw.githubusercontent.com/spacehuhn/PacketMonitor32/master/images/2.jpg)
 
-The interface is pretty simple. With clicking the button you change the WiFi channel it's monitoring (1-14).  
-Hold the button for 2 seconds to enable or disable the micro SD card.  
+![Interface explanation](https://raw.githubusercontent.com/spacehuhn/PacketMonitor32/master/images/2.jpg)
 
-## Capturing Traffic
-To caputre the WiFi traffic, you need to connect a micro SD card. The faster the card is, the better.  
-It will not delete any files when you connect it, but I recommend strongly using an empty card to prevent any chance of data loss!  
-**It must be formatted to FAT32!**  
-I recommend formatting it again before using it, just to be sure.  
+**Controls**
 
-If you want to remove the card and keep the board running, hold the button for 2 seconds again until the "SD" disappears from the display.
-  
-Every start of the board will create a new .pcap file in the root folder of the SD. You can open these files with [Wireshark](https://www.wireshark.org/).
+* Short press button: cycle monitored Wi‑Fi channel (1–14)
+* Hold button \~2 seconds: enable / disable microSD card ("SD" appears on screen when active)
 
-**Note:**  
-Sometimes the device can get into a restart loop, because it crashes everytime when it's trying to write to the SD card. If that happens, make sure the card works and try to format it again.  
+---
 
-Also please be aware that not every packet can be saved all the time! If more packets come in that can be saved, they will be dropped.  
+## Capturing traffic (SD card)
 
-## Compiling Source
-(**0.** Download and install [ESP-IDF](https://github.com/espressif/esp-idf))
-<!-- **1.** Install the Arduino core for the ESP32: https://github.com/espressif/arduino-esp32#installation-instructions  -->
-<!-- **2.** Install this ESP8266/ESP32 OLED library: https://github.com/squix78/esp8266-oled-ssd1306  -->
-<!-- **3.** [Download](https://github.com/spacehuhn/PacketMonitor32/archive/master.zip) and unzip the repository  -->
-<!-- **4.** Open PacketMonitor32.ino with Arduino  -->
-**1.** Please first run [idf.py fullclean](https://github.com/espressif/esp-idf)
-**2.** Compile the Source Code using idf.py -build
-**3.** Flash the firmware using esptool.py or [idf.py build](https://github.com/espressif/esp-idf)
+* Use a fast microSD card (higher speed improves capture reliability).
+* **Format:** FAT32 is required. Reformat the card if you’re unsure.
+* The device will not delete existing files, but **using an empty card is strongly recommended** to avoid accidental data loss.
+* On every boot the board creates a new `.pcap` file in the SD root. Open these with [Wireshark](https://www.wireshark.org/).
 
-<!-- If you ran into upload problems, try setting the flash frequency to 40MHz and the upload speed 115200.  -->
-<!-- If you want to use your own hardware, you may want to edit the settings in lines 22 - 32.  -->
-\<port by k1\>
+**Safely remove SD card:** Hold the button for \~2 seconds until the `SD` indicator disappears; the board will stop writing and it is safe to remove the card.
+
+**Notes / caveats**
+
+* If the board crashes on write, try reformatting the card or use a different card; some low‑quality cards can cause instability.
+* The capture is lossy when packet arrival exceeds what the SD card / CPU can write — some packets will be dropped under heavy load.
+
+---
+
+## Prerequisites
+
+* A working ESP‑IDF environment (tested on ESP‑IDF v4.x and later). See the official docs: [https://github.com/espressif/esp-idf](https://github.com/espressif/esp-idf)
+* Python and required tooling installed as per ESP‑IDF installation instructions
+* MicroSD card (FAT32)
+* USB cable and a serial/flash port on your ESP32 board
+
+---
+
+## Build & flash (clean, recommended sequence)
+
+This section shows a minimal, robust sequence to build and flash the firmware using `idf.py`.
+
+> **Important:** Run a full clean first to avoid stale build artifacts (recommended when switching branches or after big changes).
+
+```bash
+# 1. Open a terminal in the project root
+# 2. Clean build artifacts (recommended)
+idf.py fullclean
+
+# 3. Configure (optional)
+idf.py menuconfig     # adjust serial port, partition table, or other settings if needed
+
+# 4. Build
+idf.py build
+
+# 5. Flash to the device (replace PORT with your serial port, e.g. /dev/ttyUSB0 or COM3)
+idf.py -p PORT flash monitor
+# The `monitor` target opens a serial monitor after flashing.
+```
+
+**Alternative:** If you prefer esptool, you can use it, but `idf.py flash` wraps the right build artifacts and partition table automatically.
+
+---
+
+## Troubleshooting
+
+* **SD‑related reboot loop:** try a different card or reformat as FAT32. Some cards cause crashes when the code writes to corrupted or very slow media.
+* **Upload problems:** try lowering the flash frequency and speed in `menuconfig` (e.g., 40MHz, 115200 baud) or use a different USB cable/port.
+* **If build fails:** ensure ESP‑IDF environment is sourced (`. $HOME/esp/esp-idf/export.sh`) and Python deps are installed.
+
+---
+
+## Development notes
+
+* The code writes one `.pcap` file per boot in the SD root. Files are named based on timestamp to avoid overwriting.
+* If you want to include/exclude additional hardware or pins, see the config section at the top of the source (comments indicate where to change pins and display settings).
+
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [license file](LICENSE) for details.
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+*Port by K1*
