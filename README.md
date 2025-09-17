@@ -1,5 +1,5 @@
 # PacketMonitor32
-**by spacehuhn, ported to ESP-IDF by K1**
+**by @spacehuhn, ported to ESP-IDF by K1**
 
 **ESP32 Packet Monitor + SD card**
 
